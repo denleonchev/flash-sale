@@ -1,0 +1,246 @@
+# Technical Design Document — Flash-Sale Platform
+
+This document describes **how** the system is built, answering the requirements in
+the SRS: where the SRS says _what_ must happen (e.g. FR-15: no oversell), this says
+_how_ it is achieved. References like `(FR-15)` point to the requirement a decision
+satisfies. It does not repeat the requirements — see the SRS for those.
+
+---
+
+## 1. Architecture Overview
+
+Three application services (self-hosted, one monorepo) and three external managed
+dependencies.
+
+Application services:
+
+- **web** — Next.js frontend.
+- **api** — Nest: HTTP endpoints + Socket.IO gateway. Accepts purchases.
+- **worker** — Nest: consumes the queue, processes orders one at a time.
+
+External managed dependencies:
+
+- **Postgres + pgvector** (Supabase) — durable data and vector search.
+- **Redis** (Upstash) — atomic stock reservation, queue backend, pub/sub fan-out,
+  and caching.
+- **AI / email providers** — Groq (text LLM) and an email provider; both optional
+  and off the purchase path.
+
+```
+            ┌─────────┐
+            │   web   │  Next.js (browser)
+            └────┬────┘
+        HTTP +   │   Socket.IO
+                 ▼
+            ┌─────────┐        BullMQ job        ┌──────────┐
+            │   api   │ ───────────────────────► │  worker  │
+            │  (Nest) │                           │  (Nest)  │
+            └────┬────┘ ◄─── pub/sub result ───── └────┬─────┘
+                 │                                     │
+       ┌─────────┼──────────────┬──────────────────────┤
+       ▼         ▼              ▼                       ▼
+   Postgres    Redis        Redis (queue)            Groq /
+  (Supabase) (reserve +    (BullMQ)                  email
+             pub/sub +                               (optional)
+             cache)
+```
+
+The `api` accepts requests fast and never does heavy work inline; the `worker` does
+the slow, careful work in the background. They share no in-memory state — they
+communicate only through the queue and Redis pub/sub. (NFR-10, NFR-11)
+
+---
+
+## 2. Repository Structure
+
+A single monorepo managed with **pnpm workspaces**.
+
+```
+flash-sale/
+├─ pnpm-workspace.yaml
+├─ package.json
+├─ docker-compose.yml
+├─ apps/
+│  ├─ web/        Next.js frontend
+│  ├─ api/        Nest — HTTP API + Socket.IO gateway
+│  └─ worker/     Nest — order processor / background jobs
+└─ packages/
+   └─ shared/     shared types: DTOs, queue job/event contracts, enums
+```
+
+`packages/shared` holds the **contract** between `api` and `worker` — the queue job
+shape and the order/event types. Both services import the same definitions, so
+producer and consumer cannot drift. This is the main reason for a monorepo over
+separate repositories.
+
+---
+
+## 3. Components & Responsibilities
+
+### 3.1 web (Next.js)
+
+- Renders the drop page: product, live stock, countdown, order status.
+- Opens a Socket.IO connection for live stock/countdown and the result of the
+  user's own order. (FR-17, FR-18)
+- Reconnects automatically if the connection drops. (FR-19, NFR-4)
+- Holds no authority: never decides stock, price, or permissions. (NFR-9)
+
+### 3.2 api (Nest)
+
+- REST endpoints: auth, view event, create event (admin), place order.
+- **Socket.IO gateway** with the **Redis adapter**, so broadcasts work across
+  multiple instances. (NFR-10)
+- On "Buy": validates state, performs the **atomic Redis reservation**, enqueues on
+  success, and responds immediately. (FR-8, FR-9, NFR-3)
+- Does **not** confirm orders or talk to payment — that is the worker's job.
+
+### 3.3 worker (Nest)
+
+- Consumes the order queue, one job at a time per event (concurrency = 1). (FR-10)
+- Runs the payment step, writes the final order state in a **Postgres transaction**,
+  and releases stock on failure. (FR-11, FR-13, FR-16)
+- Publishes the result to Redis pub/sub so the `api` can push it to the buyer.
+- Hosts background-only jobs: fraud screening, email, embeddings. (FR-20, FR-23,
+  FR-26, NFR-13, NFR-14)
+
+---
+
+## 4. Purchase Flow — the core (canonical concurrency reference)
+
+This is the heart of the system and the **canonical explanation** of why overselling
+is impossible under concurrent load. The concurrency rule and auditor point here
+rather than restating the mechanism. (FR-8 to FR-16, NFR-1, NFR-3)
+
+1. **Buyer clicks "Buy".** `web` sends an authenticated request with the event id
+   and an **idempotency key** (stable per buyer+event). (FR-14)
+2. **api validates** the event is `live`; if not → reject with a reason. (FR-3)
+3. **api reserves stock atomically in Redis.** A single atomic op decrements the
+   remaining counter only if it is above zero (Lua script or guarded `DECR`). Two
+   simultaneous buyers cannot both succeed on the last unit — Redis serialises the
+   operation. Below zero → **sold out**, request rejected, nothing queued. (FR-8,
+   FR-15, FR-13)
+4. **api enqueues** the order in BullMQ with the idempotency key as the **job id**,
+   so a duplicate request maps to the same job and cannot create a second order.
+   (FR-9, FR-14)
+5. **api responds immediately**: "accepted, processing". The hot path did one Redis
+   op and one enqueue — nothing slow. (NFR-3)
+6. **worker picks up the job** and processes it, one at a time per event. (FR-10)
+7. **worker runs the payment step.** Default: a simulated payment returning
+   success/failure. Optional (Ext): a real provider in test mode driving the same
+   outcome. (FR-11, FR-12)
+8. **worker writes the result in a Postgres transaction:**
+   - **success** → create the order row as `confirmed`. A guarded write
+     (`UPDATE ... WHERE stock > 0` / row lock) is the final authority on stock, so
+     the DB can never be pushed below zero even if Redis and the DB disagree.
+     (FR-13, FR-15)
+   - **failure** → mark `failed` and **release the reserved unit** back to Redis so
+     it can be sold again. (FR-11, FR-16)
+9. **worker publishes the outcome** to Redis pub/sub.
+10. **api relays** the result to the buyer over Socket.IO and broadcasts the new
+    stock count to everyone watching the event. (FR-17, FR-18)
+
+**Why both Redis and Postgres guard stock:** Redis gives a fast, atomic reject of
+sold-out on the hot path without touching the DB; Postgres gives the durable final
+guarantee inside a transaction. The two layers serve different needs — speed vs.
+durability — and together close the oversell gap. (NFR-1)
+
+---
+
+## 5. Data Model
+
+Postgres via **Prisma**. SQL tables for core data, a JSONB column for flexible
+state, a `vector` column (pgvector) for optional search.
+
+- **users** — `id`, `email`, `password_hash`, `role` (buyer | admin | moderator).
+- **products** — `id`, `title`, `description`, `tags`, `embedding vector` _(Ext)_.
+- **sales** — `id`, `product_id`, `stock_total`, `starts_at`, `ends_at`. State
+  (upcoming/live/ended) is derived, not stored. (FR-2)
+- **orders** — `id`, `sale_id`, `buyer_id`, `idempotency_key` (unique per
+  buyer+sale), `status` (pending | confirmed | sold_out | failed), `payment_ref`
+  _(Ext)_, `created_at`. The unique key enforces idempotency at the DB level too.
+  (FR-14)
+- **order_events** — `id`, `order_id`, `type`, `payload JSONB`, `created_at`.
+  Append-only log (reserved, paid, confirmed, released, screened…). The JSONB
+  payload is the NoSQL part: different event types carry different shapes.
+- **fraud_flags** _(Ext)_ — `id`, `order_id`, `risk`, `reason`, `status`
+  (open | reviewed). (FR-22)
+
+Authoritative stock lives in Postgres (`stock_total` minus confirmed orders). The
+Redis counter is a fast working copy for the hot path; the database is the source of
+truth.
+
+---
+
+## 6. Real-Time Design
+
+- **Socket.IO** for browser connections, with the **Redis adapter** so broadcasts
+  reach clients regardless of which `api` instance they hit. (NFR-10)
+- The `worker` never touches sockets: it publishes results to Redis pub/sub, and the
+  `api` (which owns the sockets) relays them. This keeps the worker free of
+  connection state.
+- Clients reconnect and, on reconnect, re-fetch current event state, so a dropped
+  connection never leaves stale data. (FR-19)
+
+---
+
+## 7. Background Jobs (Ext)
+
+All optional features are background jobs in the worker, off the purchase path, so
+the core flow works fully without them. (NFR-13)
+
+- **Fraud screening** — after order creation: gather signals → Groq scores risk → if
+  risky, Groq drafts a reviewer note → store a `fraud_flag`. Per order, never on a
+  stream, to respect Groq's rate limits. (FR-20–22)
+- **Email** — a separate job type, sent with retries and idempotency (one email per
+  outcome); a failed provider call is retried with backoff. (FR-23–25, NFR-6)
+- **Embeddings** — computed locally (transformers.js / ONNX) in the worker, lazily
+  and one at a time, so the weak VM is never blocked. (FR-26, NFR-14)
+
+---
+
+## 8. Deployment
+
+- **api** and **worker** run on a **GCP e2-micro** VM via `docker-compose`.
+- Stateful services are external managed dependencies: Postgres/pgvector on
+  Supabase, Redis on Upstash. Only the two Node processes run on the VM, so ~1 GB
+  RAM is enough. (NFR-15)
+- **web** is deployed as a static/SSR Next.js app (free static host) or alongside
+  the api; it holds no server state.
+- Secrets come from environment configuration, never the repo. (NFR-8)
+- A swap file on the VM is a safety margin against OOM during install/build.
+
+---
+
+## 9. Key Decisions & Trade-offs
+
+- **Stock correctness: Redis + queue + Postgres.** Mechanism in §4. In short: three
+  layers for three needs — Redis for a fast atomic reject on the hot path, the queue
+  to remove parallelism during finalisation, Postgres for the durable guarantee.
+  Most moving parts of any option; Postgres-only would suffice for tiny real load,
+  but demonstrating the correct concurrent design is the point. (NFR-1, FR-10, FR-15)
+- **Queue: BullMQ.** Runs on the Redis already present, so no new infrastructure;
+  gives retries, backoff, delays, and concurrency control out of the box. Tied to
+  Redis and not a general-purpose broker — RabbitMQ/Kafka would be the answer only
+  at far larger scale. (NFR-11)
+- **Real-time: Socket.IO + Redis adapter.** Reconnection, rooms, and cross-instance
+  broadcasting are built in — the hard parts, solved. Heavier than raw `ws`; SSE or
+  `ws` would be leaner if updates were one-way from one instance. (NFR-4, NFR-10)
+- **ORM: Prisma.** Strong type-safety, clean migrations, broad support (incl.
+  pgvector), and AI tools handle it well. The cost — explicit locking / guarded
+  updates need `$queryRaw` — is small, since those concurrency-critical spots are
+  hand-written and hand-verified anyway.
+- **One Postgres (+JSONB +pgvector), not a second database.** JSONB covers
+  schema-varying state, pgvector covers vector search, both in one already-present
+  DB — cheaper to operate, no cross-store consistency problem. A dedicated vector DB
+  or document store only wins at much larger scale.
+- **Sockets on a VM, not Cloud Run.** On Cloud Run an open WebSocket keeps an
+  instance active (billed, won't scale to zero), connections face a request timeout
+  and best-effort affinity, and a queue-consuming worker wants to run continuously.
+  A small always-on VM avoids all of this for short-lived drop sessions. At larger
+  scale the answer flips to Cloud Run + the Socket.IO Redis adapter. (NFR-4, NFR-10)
+- **Fake payment by default, real provider (test mode) as an extension.** The hard
+  problem is concurrency, not payments; a simulated step exercises the flow, and
+  test-mode Stripe slots in later behind the same outcome contract. (FR-11, FR-12)
+- **Monorepo with a shared contract package.** Keeps the queue job/event types in
+  sync between api and worker in one place; pnpm workspaces, no heavy orchestrator
+  needed at this size.
