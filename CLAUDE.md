@@ -32,3 +32,12 @@ When code and docs disagree, stop and ask — do not silently diverge.
 - AI: **Groq** (text only, rate-limited) — off the purchase path.
 - Embeddings: **local** via transformers.js — background only.
 - Deploy: **GCP e2-micro** + docker-compose; databases stay external.
+
+## Modular guidance
+
+Rules (always apply):
+
+- `.claude/rules/boundaries.md` — what the agent may and may not run.
+- `.claude/rules/scope-discipline.md` — build order; core first, extras last.
+- `.claude/rules/concurrency.md` — special care for the oversell-prevention code.
+- `.claude/rules/coding-style.md` — conventions for this repo.
