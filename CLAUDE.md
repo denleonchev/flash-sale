@@ -42,6 +42,17 @@ Rules (always apply):
 - `.claude/rules/concurrency.md` — special care for the oversell-prevention code.
 - `.claude/rules/coding-style.md` — conventions for this repo.
 
+Skills (how to do recurring tasks):
+
+- `.claude/skills/add-prisma-model.md`
+- `.claude/skills/add-queue-job.md`
+- `.claude/skills/add-socket-event.md`
+
+Subagents (specialised roles):
+
+- `.claude/agents/reviewer.md`
+- `.claude/agents/concurrency-auditor.md`
+
 ## Golden rules (summary — full text in the rule files)
 
 1. **The agent writes and proposes; the human runs anything that changes state.**
