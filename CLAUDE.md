@@ -41,3 +41,16 @@ Rules (always apply):
 - `.claude/rules/scope-discipline.md` — build order; core first, extras last.
 - `.claude/rules/concurrency.md` — special care for the oversell-prevention code.
 - `.claude/rules/coding-style.md` — conventions for this repo.
+
+## Golden rules (summary — full text in the rule files)
+
+1. **The agent writes and proposes; the human runs anything that changes state.**
+   Migrations, commands against Supabase/Upstash, installs, and deploys are run by
+   the human. Pure local code (writing files, formatting, local build) the agent
+   may run itself. See `boundaries.md`.
+2. **Core before extras.** Never start an [Ext] feature while [Core] is unfinished.
+   See `scope-discipline.md`.
+3. **Concurrency code is proposed with an explanation and verified by the human.**
+   Never treat oversell-prevention code as done without reasoning. See
+   `concurrency.md`.
+4. **Follow the docs.** If a requirement is unclear or missing, ask — don't guess.
