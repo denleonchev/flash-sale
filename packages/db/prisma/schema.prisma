@@ -1,0 +1,58 @@
+// Prisma schema for the flash-sale platform (S-E0.2).
+// Source of truth for the data model is docs/technical-design.md §5. This card
+// ships only the minimal core: the sale (event) and the order. users, products,
+// order_events, fraud_flags and pgvector arrive in their own cards.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/client"
+}
+
+datasource db {
+  // Prisma 7: the connection URL lives in prisma.config.ts, not here.
+  // (NFR-8: value comes from env, never hardcoded.)
+  provider = "postgresql"
+}
+
+// Mirrors OrderStatus in packages/shared and orders.status in §5.
+enum OrderStatus {
+  pending
+  confirmed
+  sold_out
+  failed
+}
+
+/// A sale / drop (the "event"). State (upcoming/live/ended) is derived from time
+/// + stock, never stored (FR-2). Authoritative stock = stockTotal minus confirmed
+/// orders (§5).
+model Sale {
+  id         String   @id @default(uuid())
+  title      String
+  stockTotal Int      @map("stock_total")
+  startsAt   DateTime @map("starts_at")
+  endsAt     DateTime @map("ends_at")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  orders Order[]
+
+  @@map("sales")
+}
+
+/// A buyer's order for a sale.
+///
+/// Concurrency note (FR-14 / NFR-2): `idempotency_key` is UNIQUE — the DB-level
+/// backstop for idempotency. If two concurrent requests carry the same key, one
+/// INSERT wins and the other hits a unique violation, so a double-click can never
+/// create a second order. The guarded stock write lives later in S-4.1 (§4 step 8).
+model Order {
+  id             String      @id @default(uuid())
+  saleId         String      @map("sale_id")
+  buyerId        String      @map("buyer_id") // plain field for now; FK to users arrives with auth
+  idempotencyKey String      @unique @map("idempotency_key")
+  status         OrderStatus @default(pending)
+  createdAt      DateTime    @default(now()) @map("created_at")
+
+  sale Sale @relation(fields: [saleId], references: [id])
+
+  @@map("orders")
+}
