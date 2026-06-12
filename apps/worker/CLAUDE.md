@@ -6,10 +6,10 @@ them here.
 
 ## What this service is
 
-A background worker, not an HTTP server. It consumes the queue and processes orders
-one at a time — see `docs/technical-design.md` §3.3. It boots a standalone Nest
-context (no web server). The queue and the database are added later, in S-E0.4 and
-S-E0.2.
+A background worker. It consumes the queue and processes orders one at a time — see
+`docs/technical-design.md` §3.3. It boots a Nest HTTP app that exposes **only**
+`GET /health` (so docker-compose can report it healthy, S-E0.3); it serves no
+business endpoints. The queue and the database are added later, in S-E0.4 and S-E0.2.
 
 ## ESM: things to watch out for
 

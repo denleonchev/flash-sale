@@ -1,0 +1,60 @@
+# Production app stack (S-E0.3).
+#
+# Runs web / api / worker in containers on a single host. The databases are NOT
+# here — they are external managed services (Supabase Postgres + Upstash Redis),
+# reached via DATABASE_URL / REDIS_URL in .env (technical-design §8).
+#
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# All config (incl. the external DB URLs) comes from .env. No secrets in this file.
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    env_file: .env
+    # Next standalone server listens on $PORT; map it to the host.
+    environment:
+      PORT: ${WEB_PORT}
+    ports:
+      - "${WEB_PORT}:${WEB_PORT}"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:$${WEB_PORT}/ >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    env_file: .env
+    # api listens on $API_PORT (apps/api/src/main.ts).
+    ports:
+      - "${API_PORT}:${API_PORT}"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:$${API_PORT}/health >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    env_file: .env
+    # Health-only HTTP on $WORKER_PORT — internal to the compose network, not published.
+    expose:
+      - "${WORKER_PORT}"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:$${WORKER_PORT}/health >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s

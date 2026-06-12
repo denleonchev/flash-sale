@@ -1,0 +1,44 @@
+# Local development databases (S-E0.3).
+#
+# Brings up only the data stores — Postgres (+pgvector) and Redis. The apps
+# (web/api/worker) run on the HOST via pnpm and connect here over localhost.
+# In production the apps run in containers and these stores are external
+# managed services instead (see docker-compose.prod.yml, technical-design §8).
+#
+#   docker compose up -d
+#
+# Config comes from .env (copy from .env.example). No secrets live in this file.
+
+services:
+  postgres:
+    # pgvector image so local matches Supabase (pgvector ready for the Ext search).
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres-data:
+  redis-data:
