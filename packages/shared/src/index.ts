@@ -27,6 +27,27 @@ export const ORDER_QUEUE = "orders";
 export const ORDER_JOB = "process-order";
 
 /**
+ * Socket.IO wire contract, shared so the api gateway and any client agree on event
+ * names and room layout. Cross-instance fan-out is handled by the Redis adapter so
+ * a broadcast reaches a client whichever api instance it is connected to. (NFR-10)
+ */
+export const SOCKET_EVENTS = {
+  /** Server → clients in a sale room: remaining stock changed. (FR-17) */
+  STOCK_UPDATE: "stock:update",
+} as const;
+
+/** The room id a client joins to receive live updates for one sale. */
+export function getSaleRoomId(saleId: string): string {
+  return `sale:${saleId}`;
+}
+
+/** Payload broadcast on `SOCKET_EVENTS.STOCK_UPDATE`. */
+export interface StockUpdatePayload {
+  saleId: string;
+  remainingStock: number;
+}
+
+/**
  * Payload of the BullMQ order job. The `api` enqueues this after a successful
  * atomic Redis reservation (§4 step 4); the `worker` consumes it (§4 step 6).
  * The job id is the `idempotencyKey`, so duplicate requests collapse to one job.
