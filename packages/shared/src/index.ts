@@ -17,6 +17,16 @@
 export type OrderStatus = "pending" | "confirmed" | "sold_out" | "failed";
 
 /**
+ * BullMQ queue and job names. Shared so the api producer and the worker consumer
+ * agree on the exact strings and cannot drift apart. (NFR-11)
+ * - `ORDER_QUEUE` — the single queue that decouples request handling from order
+ *   processing (§3.2/§3.3).
+ * - `ORDER_JOB` — the job name added to that queue.
+ */
+export const ORDER_QUEUE = "orders";
+export const ORDER_JOB = "process-order";
+
+/**
  * Payload of the BullMQ order job. The `api` enqueues this after a successful
  * atomic Redis reservation (§4 step 4); the `worker` consumes it (§4 step 6).
  * The job id is the `idempotencyKey`, so duplicate requests collapse to one job.
@@ -26,7 +36,12 @@ export interface OrderJobPayload {
   saleId: string;
   /** Buyer placing the order. */
   buyerId: string;
-  /** Stable per buyer+sale; used as the BullMQ job id for idempotency. (FR-14) */
+  /**
+   * Stable per buyer+sale; used verbatim as the BullMQ job id for idempotency
+   * (FR-14). BullMQ forbids ':' in custom job ids (it is its Redis key
+   * separator), so this key must stay url-safe (letters, digits, '-', '_'). A
+   * future composite key that needs ':' should be hashed before becoming a jobId.
+   */
   idempotencyKey: string;
   /** Units requested. Reserved atomically in Redis before enqueue. */
   quantity: number;

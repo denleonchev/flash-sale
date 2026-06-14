@@ -1,13 +1,14 @@
 import { Module } from "@nestjs/common";
 import { HealthModule } from "./health/health.module.js";
+import { OrdersModule } from "./orders/orders.module.js";
+import { QueueModule } from "./queue/queue.module.js";
 
 /**
- * Root module. Skeleton for S-E0.1b — only the health check is wired up (via
- * Terminus, S-E0.3) so the worker can report healthy under docker-compose.
- * Feature modules (order consumer, email, embeddings) arrive in later cards
- * (S-E0.4 and beyond).
+ * Root module. Health check (Terminus, S-E0.3) plus the queue consumer backbone
+ * (S-E0.4a): QueueModule holds the shared Redis connection; OrdersModule runs the
+ * BullMQ order processor. Background extras (email, embeddings) arrive later.
  */
 @Module({
-  imports: [HealthModule],
+  imports: [HealthModule, QueueModule, OrdersModule],
 })
 export class AppModule {}

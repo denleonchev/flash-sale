@@ -16,3 +16,6 @@ next-env.d.ts
 
 # Prisma generated client
 packages/db/generated/
+
+# Claude
+.claude/plans

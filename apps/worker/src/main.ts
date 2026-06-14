@@ -5,10 +5,11 @@ import { AppModule } from "./app.module.js";
 
 /**
  * worker entrypoint. The worker is a background queue consumer
- * (docs/technical-design.md §3.3), but it also boots a minimal Nest HTTP app
- * exposing only `GET /health`, so docker-compose can report it healthy (S-E0.3).
- * The HTTP server also keeps the process alive; the BullMQ consumer and its Redis
- * connection are added later. No queue/DB yet (S-E0.4 / S-E0.2).
+ * (docs/technical-design.md §3.3): it runs the BullMQ order processor (S-E0.4a)
+ * and also boots a minimal Nest HTTP app exposing only `GET /health`, so
+ * docker-compose can report it healthy (S-E0.3). `enableShutdownHooks()` lets
+ * BullMQ close cleanly on stop so the active job can finish (AC1); the DB is
+ * still wired later (S-E0.2).
  */
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
