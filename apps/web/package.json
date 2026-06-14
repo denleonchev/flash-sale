@@ -8,9 +8,11 @@
     "start": "next start"
   },
   "dependencies": {
+    "@flash-sale/shared": "workspace:^",
     "next": "^16.2.9",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/react": "^19.2.17",

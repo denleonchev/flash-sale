@@ -8,11 +8,13 @@ import { fileURLToPath } from "node:url";
  * so the Docker image (S-E0.3) needs no node_modules at runtime. In a pnpm monorepo
  * Next must trace from the repo root, hence `outputFileTracingRoot` two levels up.
  *
- * When web starts importing @flash-sale/shared (S-1.1), add it to `transpilePackages`.
+ * `transpilePackages` lets Next compile the workspace `@flash-sale/shared` package
+ * (S-1.1) instead of treating it as a prebuilt external.
  */
 const config: NextConfig = {
   output: "standalone",
   outputFileTracingRoot: fileURLToPath(new URL("../../", import.meta.url)),
+  transpilePackages: ["@flash-sale/shared"],
 };
 
 export default config;

@@ -80,3 +80,31 @@ export interface OrderResult {
   /** Stock remaining for the sale after processing, for the live broadcast. */
   remainingStock: number;
 }
+
+/**
+ * Derived state of a sale (event). Never stored — computed from time + stock
+ * (FR-2), see `deriveSaleState` (added with the api in S-1.1b).
+ * - `upcoming` — before `startsAt`.
+ * - `live`     — between start and end, stock remaining.
+ * - `ended`    — after `endsAt`, or stock exhausted ("sold out" collapses here).
+ */
+export type SaleState = "upcoming" | "live" | "ended";
+
+/**
+ * What the buyer sees for one sale (FR-5): the api response of `GET /sales/:id`,
+ * consumed by `web`. `Dto` = a shape that crosses the client↔server boundary.
+ * This is a pure type contract: `web` validates it at runtime with a Zod schema,
+ * `api` constructs it — neither library lives here (shared stays framework-agnostic).
+ */
+export interface SaleDto {
+  id: string;
+  title: string;
+  state: SaleState;
+  /** Units still available (stockTotal minus confirmed orders, §5). */
+  remainingStock: number;
+  /** ISO-8601 timestamps so the payload is JSON-serialisable. */
+  startsAt: string;
+  endsAt: string;
+  /** Server clock at response time; anchors the client countdown (no clock skew). */
+  serverNow: string;
+}
