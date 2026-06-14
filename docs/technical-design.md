@@ -14,8 +14,12 @@ dependencies.
 
 Application services:
 
-- **web** — Next.js frontend.
-- **api** — Nest: HTTP endpoints + Socket.IO gateway. Accepts purchases.
+- **web** — Next.js, run as a dynamic Node server. Renders pages (SSR) and acts as
+  the BFF for the browser: all client HTTP (page loads and actions like Buy) goes to
+  web, which calls api server-to-server. Holds no application state. (NFR-8)
+- **api** — Nest: HTTP endpoints + Socket.IO gateway. Accepts purchases (forwarded
+  by web) and owns the realtime sockets. The browser connects to api **directly only**
+  for the WebSocket.
 - **worker** — Nest: consumes the queue, processes orders one at a time.
 
 External managed dependencies:
@@ -27,27 +31,32 @@ External managed dependencies:
   and off the purchase path.
 
 ```
-            ┌─────────┐
-            │   web   │  Next.js (browser)
-            └────┬────┘
-        HTTP +   │   Socket.IO
-                 ▼
-            ┌─────────┐        BullMQ job        ┌──────────┐
-            │   api   │ ───────────────────────► │  worker  │
-            │  (Nest) │                           │  (Nest)  │
-            └────┬────┘ ◄─── pub/sub result ───── └────┬─────┘
-                 │                                     │
-       ┌─────────┼──────────────┬──────────────────────┤
-       ▼         ▼              ▼                       ▼
-   Postgres    Redis        Redis (queue)            Groq /
-  (Supabase) (reserve +    (BullMQ)                  email
-             pub/sub +                               (optional)
-             cache)
+                     ┌──────────────┐
+                     │   browser    │
+                     └───┬───────┬──┘
+       HTTP (pages, buy) │       │ Socket.IO (live updates)
+                         ▼       ▼
+                   ┌─────────┐  ┌─────────┐   BullMQ job    ┌──────────┐
+                   │   web   │─►│   api   │ ──────────────► │  worker  │
+                   │ (Next)  │  │  (Nest) │ ◄── pub/sub ─── │  (Nest)  │
+                   └─────────┘  └────┬────┘    result       └────┬─────┘
+              server→server          │                          │
+              (SSR + buy)            │                          │
+                          ┌──────────┼──────────────┬───────────┤
+                          ▼          ▼              ▼           ▼
+                      Postgres     Redis        Redis (queue) Groq /
+                     (Supabase)  (reserve +    (BullMQ)       email
+                                 pub/sub +                    (optional)
+                                 cache)
 ```
 
-The `api` accepts requests fast and never does heavy work inline; the `worker` does
-the slow, careful work in the background. They share no in-memory state — they
-communicate only through the queue and Redis pub/sub. (NFR-10, NFR-11)
+The browser talks to **web** for all HTTP — page loads, SSR, and client actions like
+Buy, which web forwards to api server-side. The **only** direct browser↔api link is
+the Socket.IO connection for live updates. This gives the browser a single HTTP
+origin but requires web to sit next to api on the purchase hot path (see §8). The
+`api` accepts requests fast and never does heavy work inline; the `worker` does the
+slow, careful work in the background. They share no in-memory state — they
+communicate only through the queue and Redis pub/sub. (NFR-3, NFR-10, NFR-11)
 
 ---
 
@@ -204,8 +213,10 @@ the core flow works fully without them. (NFR-13)
 - Stateful services are external managed dependencies: Postgres/pgvector on
   Supabase, Redis on Upstash. Only the two Node processes run on the VM, so ~1 GB
   RAM is enough. (NFR-15)
-- **web** is deployed as a static/SSR Next.js app (free static host) or alongside
-  the api; it holds no server state.
+- **web** runs as a dynamic Next.js Node server, **co-located with api** (same VM):
+  it SSRs pages and proxies all client HTTP — including the Buy hot path — to api,
+  so it must sit next to api to keep that hop cheap. It holds no application state.
+  (NFR-3)
 - Secrets come from environment configuration, never the repo. (NFR-8)
 - A swap file on the VM is a safety margin against OOM during install/build.
 
