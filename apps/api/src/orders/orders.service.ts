@@ -1,49 +1,61 @@
-import { InjectQueue } from "@nestjs/bullmq";
-import { Injectable, Logger } from "@nestjs/common";
-import { ORDER_JOB, ORDER_QUEUE, type OrderJobPayload } from "@flash-sale/shared";
-import { Queue } from "bullmq";
-import { buildOrderJob } from "./order.factory.js";
+import { ConflictException, Injectable } from "@nestjs/common";
+import { SALE_STATES } from "@flash-sale/shared";
+import { SalesService } from "../sales/sales.service.js";
+import { OrderProducer } from "./order.producer.js";
+import { StockService } from "../stock/stock.service.js";
+import type { CreateOrderDto } from "./dto/create-order.dto.js";
 
-/**
- * Producer side of the purchase flow. The api does the fast work only — build the
- * job and enqueue it — then returns; the worker processes it independently
- * (§3.2). No shared memory between the two, only Redis (NFR-11).
- *
- * NOTE: this is the backbone for S-E0.4a. The atomic Redis stock reservation that
- * must precede the enqueue (§4 step 4) and request authentication are added in a
- * later card; today the endpoint enqueues directly to prove the path.
- */
 @Injectable()
 export class OrdersService {
-  private readonly logger = new Logger(OrdersService.name);
-
   constructor(
-    @InjectQueue(ORDER_QUEUE) private readonly queue: Queue<OrderJobPayload>,
+    private readonly orderProducer: OrderProducer,
+    private readonly stockService: StockService,
+    private readonly salesService: SalesService,
   ) {}
 
   /**
-   * Enqueue one order job.
+   * Hot-path purchase flow (§4 steps 2–5):
+   *   validate live → reserve Redis → enqueue → return "accepted".
    *
-   * Idempotency (FR-14, NFR-2): we set `jobId = idempotencyKey`. BullMQ ignores a
-   * second `add` with an id that already exists, so a buyer double-clicking Buy
-   * produces exactly one job. The consumer must also stay idempotent for the case
-   * where a job is retried after a crash.
+   * idempotencyKey = buyerId + saleId so BullMQ collapses duplicate Buy
+   * requests (e.g. double-click) into a single job. (FR-14, NFR-2)
    */
-  async enqueue(
-    saleId: string,
-    buyerId: string,
-    idempotencyKey: string,
-    quantity: number,
-  ): Promise<{ jobId: string | undefined }> {
-    const payload = buildOrderJob(saleId, buyerId, idempotencyKey, quantity);
-    const job = await this.queue.add(ORDER_JOB, payload, {
-      // Same id => duplicate requests collapse into a single job. (FR-14)
-      jobId: idempotencyKey,
-      removeOnComplete: true,
-      // Keep the last 100 failures for debugging; older ones are trimmed.
-      removeOnFail: 100,
-    });
-    this.logger.log(`enqueued order job ${job.id} for sale ${saleId}`);
-    return { jobId: job.id };
+  async buy(
+    dto: CreateOrderDto,
+  ): Promise<{ status: string; idempotencyKey: string }> {
+    const sale = await this.salesService.getSaleById(dto.saleId);
+    if (!sale || sale.state !== SALE_STATES.LIVE) {
+      throw new ConflictException("sale not live");
+    }
+
+    const idempotencyKey = `${dto.buyerId}-${dto.saleId}`;
+
+    // FR-14: if the job is already in the queue this is a duplicate request — skip reservation.
+    if (await this.orderProducer.isEnqueued(idempotencyKey)) {
+      return { status: "accepted", idempotencyKey };
+    }
+
+    const reserved = await this.stockService.reserveStock(
+      dto.saleId,
+      dto.quantity,
+    );
+    if (!reserved) {
+      throw new ConflictException("sold out");
+    }
+
+    try {
+      await this.orderProducer.enqueueOrderJob(
+        dto.saleId,
+        dto.buyerId,
+        idempotencyKey,
+        dto.quantity,
+      );
+    } catch (err) {
+      // Roll back the reservation so the unit is not lost if enqueue fails.
+      await this.stockService.releaseStock(dto.saleId, dto.quantity);
+      throw err;
+    }
+
+    return { status: "accepted", idempotencyKey };
   }
 }

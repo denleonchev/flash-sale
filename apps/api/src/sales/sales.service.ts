@@ -17,9 +17,7 @@ export class SalesService {
   async getSaleById(id: string): Promise<SaleDto | null> {
     const sale = await this.repo.findById(id);
     if (!sale) return null;
-
-    const confirmed = await this.repo.countConfirmedOrders(id);
-    return toSaleDto(sale, sale.stockTotal - confirmed, new Date());
+    return toSaleDto(sale, sale.stockTotal - sale._count.orders, new Date());
   }
 
   /** Returns all sales sorted live → upcoming → ended (FR-2, state is derived not stored). */

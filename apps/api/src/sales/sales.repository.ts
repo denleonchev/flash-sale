@@ -7,14 +7,11 @@ import { PrismaService } from "../db/prisma.service.js";
 export class SalesRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  findById(id: string): Promise<Sale | null> {
-    return this.prisma.db.sale.findUnique({ where: { id } });
-  }
-
-  /** Count orders that have been confirmed for a sale (§5: remaining = stockTotal − confirmed). */
-  countConfirmedOrders(saleId: string): Promise<number> {
-    return this.prisma.db.order.count({
-      where: { saleId, status: "confirmed" },
+  /** Returns sale with confirmed order count in one query (§5: remaining = stockTotal − confirmed). */
+  findById(id: string): Promise<(Sale & { _count: { orders: number } }) | null> {
+    return this.prisma.db.sale.findUnique({
+      where: { id },
+      include: { _count: { select: { orders: { where: { status: "confirmed" } } } } },
     });
   }
 

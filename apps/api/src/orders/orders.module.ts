@@ -1,16 +1,19 @@
 import { BullModule } from "@nestjs/bullmq";
 import { Module } from "@nestjs/common";
 import { ORDER_QUEUE } from "@flash-sale/shared";
+import { SalesModule } from "../sales/sales.module.js";
+import { StockModule } from "../stock/stock.module.js";
+import { OrderProducer } from "./order.producer.js";
 import { OrdersController } from "./orders.controller.js";
 import { OrdersService } from "./orders.service.js";
 
-/**
- * Orders feature (producer). Declares the `orders` queue it writes to via
- * `registerQueue` (the connection comes from the global QueueModule's forRoot).
- */
 @Module({
-  imports: [BullModule.registerQueue({ name: ORDER_QUEUE })],
+  imports: [
+    BullModule.registerQueue({ name: ORDER_QUEUE }),
+    SalesModule,
+    StockModule,
+  ],
   controllers: [OrdersController],
-  providers: [OrdersService],
+  providers: [OrdersService, OrderProducer],
 })
 export class OrdersModule {}

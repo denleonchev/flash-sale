@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { BuyButton } from "./buy-button";
 import { Countdown } from "./countdown";
 import { getSale } from "./get-sale";
 
@@ -33,7 +34,7 @@ export default async function SalePage({
           <p>
             Ends in <Countdown targetAt={sale.endsAt} serverNow={sale.serverNow} />
           </p>
-          <button type="button">Buy</button>
+          <BuyButton saleId={sale.id} />
         </>
       )}
 
