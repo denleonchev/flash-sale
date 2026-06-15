@@ -82,13 +82,36 @@ export interface OrderResult {
 }
 
 /**
- * Derived state of a sale (event). Never stored — computed from time + stock
- * (FR-2), see `deriveSaleState` (added with the api in S-1.1b).
+ * Canonical sale state values (FR-2). Never stored — computed from time + stock.
  * - `upcoming` — before `startsAt`.
  * - `live`     — between start and end, stock remaining.
  * - `ended`    — after `endsAt`, or stock exhausted ("sold out" collapses here).
  */
-export type SaleState = "upcoming" | "live" | "ended";
+export const SALE_STATES = {
+  UPCOMING: "upcoming",
+  LIVE: "live",
+  ENDED: "ended",
+} as const;
+
+/** Derived state of a sale (event), auto-inferred from `SALE_STATES`. */
+export type SaleState = (typeof SALE_STATES)[keyof typeof SALE_STATES];
+
+/**
+ * Derives the current state of a sale from its schedule and remaining stock (FR-2).
+ * Pure function — no I/O, testable in isolation. `now` is passed in so callers
+ * (api response, S-5.2 checks) control the clock without mocking Date.
+ *
+ * Serialisability note: `startsAt`/`endsAt` accept `Date` so the api can pass
+ * Prisma `DateTime` fields directly without conversion.
+ */
+export function deriveSaleState(
+  sale: { startsAt: Date; endsAt: Date; remainingStock: number },
+  now: Date,
+): SaleState {
+  if (now < sale.startsAt) return SALE_STATES.UPCOMING;
+  if (now >= sale.endsAt || sale.remainingStock <= 0) return SALE_STATES.ENDED;
+  return SALE_STATES.LIVE;
+}
 
 /**
  * What the buyer sees for one sale (FR-5): the api response of `GET /sales/:id`,

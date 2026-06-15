@@ -31,7 +31,7 @@ export default async function SalePage({
             <strong>Live</strong> — {sale.remainingStock} left
           </p>
           <p>
-            Ends in <Countdown targetIso={sale.endsAt} serverNowIso={sale.serverNow} />
+            Ends in <Countdown targetAt={sale.endsAt} serverNow={sale.serverNow} />
           </p>
           <button type="button">Buy</button>
         </>
@@ -45,7 +45,7 @@ export default async function SalePage({
           </p>
           <p>
             Starts in{" "}
-            <Countdown targetIso={sale.startsAt} serverNowIso={sale.serverNow} />
+            <Countdown targetAt={sale.startsAt} serverNow={sale.serverNow} />
           </p>
           <button type="button" disabled>
             Buy

@@ -1,15 +1,16 @@
 import { Module } from "@nestjs/common";
+import { DbModule } from "./db/db.module.js";
 import { HealthModule } from "./health/health.module.js";
 import { OrdersModule } from "./orders/orders.module.js";
 import { QueueModule } from "./queue/queue.module.js";
 import { RealtimeModule } from "./realtime/realtime.module.js";
+import { SalesModule } from "./sales/sales.module.js";
 
 /**
- * Root module. Health check (Terminus, S-E0.3), the queue backbone (S-E0.4a:
- * QueueModule + OrdersModule producer) and the realtime gateway (S-E0.4b:
- * RealtimeModule). Remaining feature modules (sales, auth) arrive in later cards.
+ * Root module. Health check (Terminus, S-E0.3), queue backbone (S-E0.4a/b),
+ * DB (S-1.1b: DbModule global), and Sales feature (GET /sales/:id, FR-5).
  */
 @Module({
-  imports: [HealthModule, QueueModule, OrdersModule, RealtimeModule],
+  imports: [DbModule, HealthModule, QueueModule, OrdersModule, RealtimeModule, SalesModule],
 })
 export class AppModule {}

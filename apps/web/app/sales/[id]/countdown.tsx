@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { formatDuration } from "./format-duration";
 
 /**
  * Live countdown to a target time. Anchored to the **server** clock: at mount we
@@ -9,37 +10,29 @@ import { useEffect, useState } from "react";
  * No socket here; real-time pushes are UR-3. When it reaches zero it just stops (the
  * state flips on the next page load).
  */
-function format(ms: number): string {
-  const total = Math.max(0, Math.floor(ms / 1000));
-  const d = Math.floor(total / 86400);
-  const h = Math.floor((total % 86400) / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const hms = `${pad(h)}:${pad(m)}:${pad(s)}`;
-  return d > 0 ? `${d}d ${hms}` : hms;
-}
+const TICK_INTERVAL_MS = 1000;
 
 export function Countdown({
-  targetIso,
-  serverNowIso,
+  targetAt,
+  serverNow,
 }: {
-  targetIso: string;
-  serverNowIso: string;
+  targetAt: string;
+  serverNow: string;
 }) {
-  const target = new Date(targetIso).getTime();
-  const [remaining, setRemaining] = useState(
-    () => target - new Date(serverNowIso).getTime(),
+  const targetMs = new Date(targetAt).getTime();
+  const [remainingMs, setRemainingMs] = useState(
+    () => targetMs - new Date(serverNow).getTime(),
   );
 
   useEffect(() => {
-    // serverNow ≈ localStart + skew → estimate server "now" without trusting the client clock.
-    const skew = new Date(serverNowIso).getTime() - Date.now();
-    const tick = () => setRemaining(target - (Date.now() + skew));
-    tick();
-    const handle = setInterval(tick, 1000);
-    return () => clearInterval(handle);
-  }, [target, serverNowIso]);
+    // Offset between server clock and local clock — lets us track server time
+    // without trusting the visitor's clock.
+    const clockSkewMs = new Date(serverNow).getTime() - Date.now();
+    const updateRemaining = () => setRemainingMs(targetMs - (Date.now() + clockSkewMs));
+    updateRemaining();
+    const timerId = setInterval(updateRemaining, TICK_INTERVAL_MS);
+    return () => clearInterval(timerId);
+  }, [targetMs, serverNow]);
 
-  return <time dateTime={targetIso}>{format(remaining)}</time>;
+  return <time dateTime={targetAt}>{formatDuration(remainingMs)}</time>;
 }
