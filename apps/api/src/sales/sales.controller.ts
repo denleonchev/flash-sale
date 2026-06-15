@@ -6,6 +6,12 @@ import { SalesService } from "./sales.service.js";
 export class SalesController {
   constructor(private readonly service: SalesService) {}
 
+  /** Catalog: all sales sorted live → upcoming → ended (supports FR-5 / UR-1). */
+  @Get()
+  getAllSales(): Promise<SaleDto[]> {
+    return this.service.getAllSales();
+  }
+
   /** FR-5: returns the sale with derived state + remaining stock. */
   @Get(":id")
   async getSale(@Param("id", ParseUUIDPipe) id: string): Promise<SaleDto> {

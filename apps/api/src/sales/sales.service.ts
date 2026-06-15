@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
-import { deriveSaleState, type SaleDto } from "@flash-sale/shared";
+import { SALE_STATES, type SaleDto } from "@flash-sale/shared";
 import { SalesRepository } from "./sales.repository.js";
+import { toSaleDto } from "./sales.mapper.js";
 
 @Injectable()
 export class SalesService {
@@ -18,17 +19,16 @@ export class SalesService {
     if (!sale) return null;
 
     const confirmed = await this.repo.countConfirmedOrders(id);
-    const remainingStock = sale.stockTotal - confirmed;
-    const now = new Date();
+    return toSaleDto(sale, sale.stockTotal - confirmed, new Date());
+  }
 
-    return {
-      id: sale.id,
-      title: sale.title,
-      state: deriveSaleState({ startsAt: sale.startsAt, endsAt: sale.endsAt, remainingStock }, now),
-      remainingStock,
-      startsAt: sale.startsAt.toISOString(),
-      endsAt: sale.endsAt.toISOString(),
-      serverNow: now.toISOString(),
-    };
+  /** Returns all sales sorted live → upcoming → ended (FR-2, state is derived not stored). */
+  async getAllSales(): Promise<SaleDto[]> {
+    const sales = await this.repo.findAll();
+    const now = new Date();
+    const stateOrder = { [SALE_STATES.LIVE]: 0, [SALE_STATES.UPCOMING]: 1, [SALE_STATES.ENDED]: 2 };
+    return sales
+      .map((s) => toSaleDto(s, s.stockTotal - s._count.orders, now))
+      .sort((a, b) => stateOrder[a.state] - stateOrder[b.state]);
   }
 }
