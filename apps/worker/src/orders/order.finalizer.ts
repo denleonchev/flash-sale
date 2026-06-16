@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { PrismaService } from "../db/prisma.service.js";
 import type { OrderJobPayload, OrderStatus } from "@flash-sale/shared";
+import { OrdersRepository } from "./orders.repository.js";
+import { StockPublisher } from "../realtime/stock.publisher.js";
 
 /** P2002 = unique constraint violation in Prisma — job re-delivered after a crash. */
 function isPrismaUniqueError(e: unknown): boolean {
@@ -14,7 +15,7 @@ function isPrismaUniqueError(e: unknown): boolean {
 
 /**
  * Finalizes one order job: runs payment simulation and writes the terminal order
- * row in a Postgres transaction.
+ * row via OrdersRepository.
  *
  * Concurrency correctness (§4, .claude/rules/concurrency.md):
  * - Serialisation: OrderProcessor runs with concurrency=1 — only one finalizeOrder
@@ -23,16 +24,24 @@ function isPrismaUniqueError(e: unknown): boolean {
  *   constraint in the DB. A job re-delivered after a crash hits P2002 on the second
  *   attempt → we catch it, read back the already-written row, and return. No second
  *   order is created, no second unit is confirmed — "never two".
- * - Transaction shim: $transaction wraps the single INSERT now; S-4.1 will add the
- *   guarded stock check inside the same atomic unit, S-4.2 will add stock release.
- * - Result delivery (FR-18) arrives in a later card: worker will publish to Redis
- *   pub/sub and the api will relay to the buyer's socket.
+ * - Transaction: confirmOrderAndGetRemaining wraps INSERT + remaining-stock read in
+ *   one $transaction (read-your-writes, FR-17); S-4.1 will add the guarded stock
+ *   check, S-4.2 will add stock release inside the same unit.
+ * - Live stock (FR-17): after the order is committed we publish the post-confirm
+ *   remaining to Redis pub/sub; the api relays it to everyone watching the sale
+ *   (§4 steps 9–10, §6). Broadcast is strictly downstream of the authoritative
+ *   confirm and does not affect stock correctness — concurrency=1 makes the read
+ *   race-free, and the absolute payload is idempotent.
+ * - Per-buyer result delivery (FR-18) arrives in a later card.
  */
 @Injectable()
 export class OrderFinalizer {
   private readonly logger = new Logger(OrderFinalizer.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly ordersRepo: OrdersRepository,
+    private readonly stockPublisher: StockPublisher,
+  ) {}
 
   /** Payment simulation. Always succeeds until S-4.2 wires in the failure branch. */
   private simulatePayment(_job: OrderJobPayload): { success: boolean } {
@@ -47,32 +56,28 @@ export class OrderFinalizer {
     void success;
 
     let finalStatus: OrderStatus;
+    let remainingStock: number;
     try {
-      // $transaction shim: single INSERT today; guarded stock check (S-4.1) and
-      // stock release on failure (S-4.2) slot into the same transaction later.
-      await this.prisma.db.$transaction(async (tx) => {
-        await tx.order.create({
-          data: {
-            saleId: job.saleId,
-            buyerId: job.buyerId,
-            idempotencyKey: job.idempotencyKey,
-            status: "confirmed",
-          },
-        });
-      });
+      // INSERT + remaining-stock read in one tx (read-your-writes, FR-17).
+      remainingStock = await this.ordersRepo.confirmOrderAndGetRemaining(job);
       finalStatus = "confirmed";
     } catch (e) {
       if (isPrismaUniqueError(e)) {
         // Job was already processed (crash + BullMQ retry). Read back the existing
         // row — do NOT throw (that would cause an infinite retry loop).
-        const existing = await this.prisma.db.order.findUniqueOrThrow({
-          where: { idempotencyKey: job.idempotencyKey },
-        });
+        const existing = await this.ordersRepo.findOrderByIdempotencyKey(
+          job.idempotencyKey,
+        );
         finalStatus = existing.status as OrderStatus;
+        // Republish the current count (safe at concurrency=1, idempotent payload).
+        remainingStock = await this.ordersRepo.getRemainingStock(job.saleId);
       } else {
         throw e;
       }
     }
+
+    // FR-17: tell everyone watching the sale the new number (api relays via socket).
+    await this.stockPublisher.publishStock({ saleId: job.saleId, remainingStock });
 
     this.logger.log(`finalized order ${job.idempotencyKey} -> ${finalStatus}`);
   }

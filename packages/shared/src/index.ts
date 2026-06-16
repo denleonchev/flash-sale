@@ -31,8 +31,10 @@ export const ORDER_JOB = "process-order";
  * a broadcast reaches a client whichever api instance it is connected to. (NFR-10)
  */
 export const SOCKET_EVENTS = {
-  /** Server → clients in a sale room: remaining stock changed. (FR-17) */
-  STOCK_UPDATE: "stock:update",
+  /** Client → server command: follow one sale, i.e. join its room. (FR-17, FR-19) */
+  SALE_SUBSCRIBE: "sale:subscribe",
+  /** Server → clients event: the sale's remaining stock changed. (FR-17) */
+  SALE_STOCK_UPDATED: "sale:stock:updated",
 } as const;
 
 /** The room id a client joins to receive live updates for one sale. */
@@ -40,8 +42,15 @@ export function getSaleRoomId(saleId: string): string {
   return `sale:${saleId}`;
 }
 
-/** Payload broadcast on `SOCKET_EVENTS.STOCK_UPDATE`. */
-export interface StockUpdatePayload {
+/**
+ * Redis pub/sub channel the `worker` publishes post-confirm stock counts to, and
+ * the `api` subscribes to and relays into sale rooms over Socket.IO (§4 steps 9–10,
+ * §6). The message body is a `SaleStockUpdatedPayload`. (FR-17, NFR-10)
+ */
+export const STOCK_CHANNEL = "stock:updates";
+
+/** Payload broadcast on `SOCKET_EVENTS.SALE_STOCK_UPDATED`. */
+export interface SaleStockUpdatedPayload {
   saleId: string;
   remainingStock: number;
 }

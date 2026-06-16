@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "dotenv -e ../../.env -- next dev",
-    "build": "next build",
+    "build": "dotenv -e ../../.env -- next build",
     "start": "dotenv -e ../../.env -- next start"
   },
   "dependencies": {
@@ -13,6 +13,7 @@
     "next": "^16.2.9",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
+    "socket.io-client": "^4.8.3",
     "zod": "^4.4.3"
   },
   "devDependencies": {

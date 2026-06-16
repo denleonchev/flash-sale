@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
 import { auth0 } from "@/lib/auth0";
-import { BuyButton } from "./buy-button";
 import { Countdown } from "./countdown";
 import { getSale } from "./get-sale";
+import { LiveStock } from "./live-stock";
 
 /**
  * Event (sale) view — S-1.1 (FR-5). SSR server component: fetch the sale on the
@@ -23,6 +23,9 @@ export default async function SalePage({
 
   const session = await auth0.getSession();
   const soldOut = sale.state === "ended" && sale.remainingStock <= 0;
+  // FR-17: live stock, countdown and Buy for an in-progress sale render client-side
+  // (LiveStock) so Socket.IO can keep the number current. The upcoming branch stays
+  // server-rendered — nothing is live before the sale starts.
 
   return (
     <main>
@@ -36,15 +39,13 @@ export default async function SalePage({
       <h1>{sale.title}</h1>
 
       {sale.state === "live" && (
-        <>
-          <p>
-            <strong>Live</strong> — {sale.remainingStock} left
-          </p>
-          <p>
-            Ends in <Countdown targetAt={sale.endsAt} serverNow={sale.serverNow} />
-          </p>
-          <BuyButton saleId={sale.id} signedIn={!!session} />
-        </>
+        <LiveStock
+          saleId={sale.id}
+          initialStock={sale.remainingStock}
+          signedIn={!!session}
+          endsAt={sale.endsAt}
+          serverNow={sale.serverNow}
+        />
       )}
 
       {sale.state === "upcoming" && (
