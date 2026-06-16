@@ -8,13 +8,12 @@
  */
 
 /**
- * Lifecycle of an order. Mirrors the `orders.status` column in §5.
- * - `pending`   — reserved + enqueued, not yet processed by the worker.
+ * Terminal lifecycle states of an order. Mirrors the `orders.status` column in §5.
  * - `confirmed` — worker committed the order in a Postgres transaction.
- * - `sold_out`  — reservation failed; stock was exhausted.
- * - `failed`    — payment failed; the reserved unit was released.
+ * - `sold_out`  — guarded Postgres write found no remaining stock (arrives in S-4.1).
+ * - `failed`    — payment failed; the reserved unit was released (arrives in S-4.2).
  */
-export type OrderStatus = "pending" | "confirmed" | "sold_out" | "failed";
+export type OrderStatus = "confirmed" | "sold_out" | "failed";
 
 /**
  * BullMQ queue and job names. Shared so the api producer and the worker consumer
