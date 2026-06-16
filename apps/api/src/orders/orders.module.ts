@@ -6,6 +6,7 @@ import { StockModule } from "../stock/stock.module.js";
 import { OrderProducer } from "./order.producer.js";
 import { OrdersController } from "./orders.controller.js";
 import { OrdersService } from "./orders.service.js";
+import { OrdersRepository } from "./orders.repository.js";
 
 @Module({
   imports: [
@@ -14,6 +15,6 @@ import { OrdersService } from "./orders.service.js";
     StockModule,
   ],
   controllers: [OrdersController],
-  providers: [OrdersService, OrderProducer],
+  providers: [OrdersService, OrderProducer, OrdersRepository],
 })
 export class OrdersModule {}

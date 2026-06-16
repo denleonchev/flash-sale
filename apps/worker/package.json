@@ -9,6 +9,7 @@
     "start": "node --env-file-if-exists=../../.env dist/main.js"
   },
   "dependencies": {
+    "@flash-sale/db": "workspace:^",
     "@flash-sale/shared": "workspace:*",
     "@nestjs/bullmq": "^11.0.4",
     "@nestjs/common": "^11.1.26",

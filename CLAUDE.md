@@ -53,6 +53,12 @@ Subagents (specialised roles):
 - `.claude/agents/reviewer.md`
 - `.claude/agents/concurrency-auditor.md`
 
+## Plans
+
+Finalized implementation plans live in `.claude/plans/<short-slug>.md`, versioned with
+the code. Plan mode's scratch file is under `~/.claude/`; copy the approved plan here so
+it travels with the repo and any model/agent can pick it up.
+
 ## Golden rules (summary — full text in the rule files)
 
 1. **The agent writes and proposes; the human runs anything that changes state.**

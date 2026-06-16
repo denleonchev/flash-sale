@@ -2,6 +2,7 @@ import { ConflictException, Injectable } from "@nestjs/common";
 import { SALE_STATES } from "@flash-sale/shared";
 import { SalesService } from "../sales/sales.service.js";
 import { OrderProducer } from "./order.producer.js";
+import { OrdersRepository } from "./orders.repository.js";
 import { StockService } from "../stock/stock.service.js";
 import type { CreateOrderDto } from "./dto/create-order.dto.js";
 
@@ -11,6 +12,7 @@ export class OrdersService {
     private readonly orderProducer: OrderProducer,
     private readonly stockService: StockService,
     private readonly salesService: SalesService,
+    private readonly ordersRepository: OrdersRepository,
   ) {}
 
   /**
@@ -30,8 +32,15 @@ export class OrdersService {
 
     const idempotencyKey = `${dto.buyerId}-${dto.saleId}`;
 
-    // FR-14: if the job is already in the queue this is a duplicate request — skip reservation.
-    if (await this.orderProducer.isEnqueued(idempotencyKey)) {
+    // FR-14: parallel check — BullMQ (in-queue/active) and DB (already finalized).
+    // DB backstop needed because removeOnComplete:true removes completed jobs from
+    // BullMQ, so isEnqueued returns false for a finished order; without the DB check
+    // a second buy would decrement Redis stock and leak a unit when the worker hits P2002.
+    const [enqueued, finalized] = await Promise.all([
+      this.orderProducer.isEnqueued(idempotencyKey),
+      this.ordersRepository.findByIdempotencyKey(idempotencyKey),
+    ]);
+    if (enqueued || finalized) {
       return { status: "accepted", idempotencyKey };
     }
 

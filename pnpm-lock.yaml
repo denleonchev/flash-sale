@@ -97,6 +97,9 @@ importers:
 
   apps/worker:
     dependencies:
+      '@flash-sale/db':
+        specifier: workspace:^
+        version: link:../../packages/db
       '@flash-sale/shared':
         specifier: workspace:*
         version: link:../../packages/shared

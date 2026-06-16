@@ -18,6 +18,20 @@ business endpoints. The queue and the database are added later, in S-E0.4 and S-
 - Put `import "reflect-metadata";` on the first line of `main.ts`. Nest DI needs it.
 - There is no `__dirname` and no `require`. Use `import.meta.url` instead.
 
+## Layered architecture
+
+Strict layer order — never skip a layer:
+
+```
+Processor → Finalizer/Service → Repository → PrismaService
+```
+
+- **Processor** (`*.processor.ts`): picks up the BullMQ job, delegates to a service.
+- **Finalizer / Service**: business logic. Never imports `PrismaService` directly.
+- **Repository**: all `prisma.db.*` calls live here, nowhere else. Returns raw Prisma
+  rows; no business logic.
+- **PrismaService**: DB connection wrapper (`src/db/`). Injected only into repositories.
+
 ## Worker rules
 
 - Order processing runs one at a time per event (concurrency = 1). Do not parallelise
