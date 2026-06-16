@@ -1,12 +1,25 @@
 "use server";
 
 import { apiFetch } from "@/lib/api";
+import { auth0 } from "@/lib/auth0";
+import { encodeBuyerId } from "@/lib/buyer-id";
 
 type BuyResult =
   | { ok: true; status: string; idempotencyKey: string }
   | { ok: false; message: string };
 
-export async function buyAction(saleId: string, buyerId: string): Promise<BuyResult> {
+/**
+ * Places an order for the signed-in buyer (S-2.5, FR-6). Identity comes from the
+ * Auth0 session server-side — never from the client (NFR-9). Signed-out → rejected
+ * here, before any api call, so no order is created.
+ */
+export async function buyAction(saleId: string): Promise<BuyResult> {
+  const session = await auth0.getSession();
+  if (!session) {
+    return { ok: false, message: "Sign in required" };
+  }
+  const buyerId = encodeBuyerId(session.user.sub);
+
   let res: Response;
   try {
     res = await apiFetch("/orders", {

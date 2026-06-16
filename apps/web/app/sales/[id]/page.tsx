@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { auth0 } from "@/lib/auth0";
 import { BuyButton } from "./buy-button";
 import { Countdown } from "./countdown";
 import { getSale } from "./get-sale";
@@ -20,10 +21,18 @@ export default async function SalePage({
     notFound();
   }
 
+  const session = await auth0.getSession();
   const soldOut = sale.state === "ended" && sale.remainingStock <= 0;
 
   return (
     <main>
+      {session && (
+        <p>
+          Signed in as {session.user.name ?? session.user.email ?? "buyer"} ·{" "}
+          <a href="/auth/logout">Sign out</a>
+        </p>
+      )}
+
       <h1>{sale.title}</h1>
 
       {sale.state === "live" && (
@@ -34,7 +43,7 @@ export default async function SalePage({
           <p>
             Ends in <Countdown targetAt={sale.endsAt} serverNow={sale.serverNow} />
           </p>
-          <BuyButton saleId={sale.id} />
+          <BuyButton saleId={sale.id} signedIn={!!session} />
         </>
       )}
 

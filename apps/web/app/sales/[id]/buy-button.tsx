@@ -10,18 +10,26 @@ type State =
 
 const INITIAL: State = { phase: "idle" };
 
-export function BuyButton({ saleId }: { saleId: string }) {
+export function BuyButton({
+  saleId,
+  signedIn,
+}: {
+  saleId: string;
+  signedIn: boolean;
+}) {
   const [state, formAction, pending] = useActionState<State, FormData>(
-    async (_prev, formData) => {
-      const buyerId = (formData.get("buyerId") as string | null)?.trim() ?? "";
-      if (!buyerId) return { phase: "error", message: "Name is required" };
-
-      const result = await buyAction(saleId, buyerId);
+    async () => {
+      const result = await buyAction(saleId);
       if (!result.ok) return { phase: "error", message: result.message };
       return { phase: "accepted", idempotencyKey: result.idempotencyKey };
     },
     INITIAL,
   );
+
+  // FR-6: signed-out buyers are asked to sign in; no order can be placed.
+  if (!signedIn) {
+    return <a href={`/auth/login?returnTo=/sales/${saleId}`}>Sign in to buy</a>;
+  }
 
   if (state.phase === "accepted") {
     return <p>Order accepted! Reference: {state.idempotencyKey}</p>;
@@ -29,16 +37,6 @@ export function BuyButton({ saleId }: { saleId: string }) {
 
   return (
     <form action={formAction}>
-      {/* Temporary until S-2.5 adds auth — buyer identifies by name */}
-      <input
-        name="buyerId"
-        type="text"
-        placeholder="Your name"
-        pattern="[A-Za-z0-9_-]+"
-        maxLength={64}
-        required
-        disabled={pending}
-      />
       <button type="submit" disabled={pending}>
         {pending ? "Processing…" : "Buy"}
       </button>
