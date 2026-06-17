@@ -1,6 +1,12 @@
 import { Injectable } from "@nestjs/common";
 import type { OrderJobPayload } from "@flash-sale/shared";
+import { OrderStatus } from "@flash-sale/db/client";
 import { PrismaService } from "../db/prisma.service.js";
+
+export interface GuardedOrderResult {
+  readonly status: OrderStatus;
+  readonly remaining: number;
+}
 
 /**
  * All prisma.db.* calls for the orders feature live here (worker CLAUDE.md layered
@@ -11,21 +17,40 @@ export class OrdersRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Inserts the confirmed order row and returns the post-commit remaining stock,
-   * both inside one $transaction (read-your-writes: the count includes the row just
-   * created, so the published remaining is exact). (FR-17, §4 steps 9–10)
+   * Guarded write — the final authority on stock (§4 step 8, FR-15, NFR-1). In one
+   * $transaction: lock the sale row (SELECT ... FOR UPDATE), then confirm the order
+   * only if confirmed < stockTotal; otherwise record it `sold_out`. The lock
+   * serialises confirmations for THIS sale, so two buyers racing for the last unit
+   * are handled one after another and the DB can never exceed stockTotal — even if
+   * the Redis reserve over-counts. Returns the terminal status and the post-write
+   * remaining (read-your-writes inside the same tx). See .claude/rules/concurrency.md.
    */
-  async confirmOrderAndGetRemaining(job: OrderJobPayload): Promise<number> {
+  async createGuardedOrder(job: OrderJobPayload): Promise<GuardedOrderResult> {
     return this.prisma.db.$transaction(async (tx) => {
+      // Row lock: any concurrent confirm for this sale blocks until we commit.
+      const rows = await tx.$queryRaw<{ stock_total: number }[]>`
+        SELECT stock_total FROM sales WHERE id = ${job.saleId} FOR UPDATE`;
+      if (rows.length === 0) {
+        // The reservation in §4 step 3 ran against this sale, so it must exist.
+        throw new Error(`sale ${job.saleId} missing during confirm`);
+      }
+      const stockTotal = rows[0]!.stock_total;
+
+      const confirmed = await tx.order.count({
+        where: { saleId: job.saleId, status: OrderStatus.confirmed },
+      });
+      const status =
+        confirmed < stockTotal ? OrderStatus.confirmed : OrderStatus.sold_out;
+
       await tx.order.create({
         data: {
           saleId: job.saleId,
           buyerId: job.buyerId,
           idempotencyKey: job.idempotencyKey,
-          status: "confirmed",
+          status,
         },
       });
-      return this.readRemainingStock(tx, job.saleId);
+      return { status, remaining: await this.readRemainingStock(tx, job.saleId) };
     });
   }
 

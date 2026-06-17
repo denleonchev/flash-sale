@@ -19,15 +19,18 @@ function isPrismaUniqueError(e: unknown): boolean {
  * row via OrdersRepository.
  *
  * Concurrency correctness (§4, .claude/rules/concurrency.md):
- * - Serialisation: OrderProcessor runs with concurrency=1 — only one finalizeOrder
- *   call runs at a time, so two INSERT attempts never race each other.
+ * - Guarded write (S-4.1, FR-15/NFR-1): createGuardedOrder locks the sale row inside
+ *   the tx and confirms only while confirmed < stockTotal, else records sold_out — so
+ *   the DB is the final authority on stock and can never exceed stockTotal, even if the
+ *   Redis reserve over-counts. The lock serialises confirmations per sale; the worker's
+ *   concurrency=1 is an extra outer serialiser, not the thing correctness relies on.
  * - Idempotency (NFR-2): the INSERT uses idempotencyKey which carries a UNIQUE
  *   constraint in the DB. A job re-delivered after a crash hits P2002 on the second
  *   attempt → we catch it, read back the already-written row, and return. No second
  *   order is created, no second unit is confirmed — "never two".
- * - Transaction: confirmOrderAndGetRemaining wraps INSERT + remaining-stock read in
- *   one $transaction (read-your-writes, FR-17); S-4.1 will add the guarded stock
- *   check, S-4.2 will add stock release inside the same unit.
+ * - Transaction: createGuardedOrder wraps lock + count + INSERT + remaining-stock read
+ *   in one $transaction (read-your-writes, FR-17); S-4.2 will add stock release on
+ *   payment failure inside the same unit.
  * - Live stock (FR-17): after the order is committed we publish the post-confirm
  *   remaining to Redis pub/sub; the api relays it to everyone watching the sale
  *   (§4 steps 9–10, §6). Broadcast is strictly downstream of the authoritative
@@ -60,9 +63,10 @@ export class OrderFinalizer {
     let finalStatus: OrderStatus;
     let remainingStock: number;
     try {
-      // INSERT + remaining-stock read in one tx (read-your-writes, FR-17).
-      remainingStock = await this.ordersRepo.confirmOrderAndGetRemaining(job);
-      finalStatus = "confirmed";
+      // Guarded write decides confirmed vs sold_out under the sale-row lock (FR-15).
+      const result = await this.ordersRepo.createGuardedOrder(job);
+      finalStatus = result.status;
+      remainingStock = result.remaining;
     } catch (e) {
       if (isPrismaUniqueError(e)) {
         // Job was already processed (crash + BullMQ retry). Read back the existing
