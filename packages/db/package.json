@@ -19,6 +19,7 @@
     "generate": "prisma generate",
     "migrate:dev": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
+    "test:integration:concurrency": "tsx integration/concurrency/main.ts",
     "postinstall": "prisma generate && tsc"
   },
   "dependencies": {
@@ -27,6 +28,7 @@
     "pg": "^8.21.0"
   },
   "devDependencies": {
+    "@types/node": "^25.9.3",
     "dotenv": "^16.4.7",
     "prisma": "^7.8.0",
     "tsx": "^4.22.4"
