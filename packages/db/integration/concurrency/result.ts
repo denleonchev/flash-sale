@@ -1,6 +1,6 @@
 import type { HarnessConfig } from "./config.js";
 import type { FireReport } from "./buyer-swarm.js";
-import type { OrderSnapshot } from "./order-inspector.js";
+import type { OrderSnapshot, DrainTiming } from "./order-inspector.js";
 
 /** The verdict and its human-readable report. */
 export class HarnessResult {
@@ -8,6 +8,7 @@ export class HarnessResult {
     private readonly config: HarnessConfig,
     private readonly fire: FireReport,
     private readonly snapshot: OrderSnapshot,
+    private readonly timing: DrainTiming,
   ) {}
 
   /** PASS ⟺ exactly K confirmed and no buyer confirmed twice. */
@@ -29,11 +30,17 @@ export class HarnessResult {
     }
     console.log(`confirmed (DB)   : ${this.snapshot.confirmed}`);
     console.log(`duplicate buyers : ${this.snapshot.duplicateBuyers}`);
-    console.log("────────────────────────");
+    console.log(`first confirm    : ${this.formatMs(this.timing.firstConfirmMs)}`);
+    console.log(`drained          : ${this.formatMs(this.timing.drainMs)}`);
+    console.log("──────────────────────── (timing ±250ms poll resolution)");
     console.log(
       this.passed
         ? "✅ PASS — no oversell"
         : "❌ FAIL — oversell or duplicate detected",
     );
+  }
+
+  private formatMs(ms: number | null): string {
+    return ms === null ? "— (not reached)" : `${ms} ms`;
   }
 }

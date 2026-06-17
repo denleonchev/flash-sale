@@ -32,9 +32,9 @@ export class ConcurrencyHarness {
 
     const fire = await this.swarm.fireConcurrentBuys(saleId);
     // Each accepted reservation enqueues one job → expect that many confirmations.
-    await this.inspector.waitForQueueToDrain(saleId, fire.accepted);
+    const timing = await this.inspector.waitForQueueToDrain(saleId, fire.accepted);
     const snapshot = await this.inspector.takeSnapshot(saleId);
 
-    return new HarnessResult(this.config, fire, snapshot);
+    return new HarnessResult(this.config, fire, snapshot, timing);
   }
 }

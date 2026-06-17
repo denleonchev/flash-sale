@@ -10,6 +10,12 @@ export interface OrderSnapshot {
   readonly duplicateBuyers: number;
 }
 
+/** Timing of the drain, measured from the start of the wait (±DRAIN_POLL_MS resolution). */
+export interface DrainTiming {
+  readonly firstConfirmMs: number | null; // until confirmed first went > 0
+  readonly drainMs: number | null; // until confirmed reached expected (null = timed out)
+}
+
 /**
  * All authoritative reads of order state against Postgres (the source of truth,
  * stockTotal − confirmed). Schema-coupled queries live ONLY here. Reads the raw
@@ -28,12 +34,23 @@ export class OrderInspector {
    * worker even starts.) On timeout we fall through; the snapshot still asserts —
    * confirmed short of expected means the worker is down/slow or a job failed.
    */
-  async waitForQueueToDrain(saleId: string, expectedConfirmed: number): Promise<void> {
-    const deadline = Date.now() + DRAIN_TIMEOUT_MS;
+  async waitForQueueToDrain(
+    saleId: string,
+    expectedConfirmed: number,
+  ): Promise<DrainTiming> {
+    const start = Date.now();
+    const deadline = start + DRAIN_TIMEOUT_MS;
+    let firstConfirmMs: number | null = null;
+
     while (Date.now() < deadline) {
-      if ((await this.countConfirmed(saleId)) >= expectedConfirmed) return;
+      const confirmed = await this.countConfirmed(saleId);
+      if (firstConfirmMs === null && confirmed > 0) firstConfirmMs = Date.now() - start;
+      if (confirmed >= expectedConfirmed) {
+        return { firstConfirmMs, drainMs: Date.now() - start };
+      }
       await sleep(DRAIN_POLL_MS);
     }
+    return { firstConfirmMs, drainMs: null }; // timed out
   }
 
   /** One consistent, parallel read of the two independent facts we assert on. */
