@@ -2,6 +2,8 @@
 
 import { useActionState } from "react";
 import { buyAction } from "./actions";
+import { useOrderResult } from "./use-order-result";
+import type { OrderStatus } from "@flash-sale/shared";
 
 type State =
   | { phase: "idle" }
@@ -9,6 +11,23 @@ type State =
   | { phase: "error"; message: string };
 
 const INITIAL: State = { phase: "idle" };
+
+const RESULT_LABELS: Record<OrderStatus, string> = {
+  confirmed: "Confirmed!",
+  sold_out: "Sold out",
+  failed: "Payment failed",
+};
+
+/**
+ * Displays the buy form; on success renders `OrderOutcome` which listens for the
+ * per-buyer result over Socket.IO (FR-18). `OrderOutcome` is a separate component
+ * so `useOrderResult` is not called conditionally — hooks must be at the top level.
+ */
+function OrderOutcome({ saleId }: { saleId: string }) {
+  const status = useOrderResult(saleId);
+  if (!status) return <p>Processing…</p>;
+  return <p>{RESULT_LABELS[status]}</p>;
+}
 
 export function BuyButton({
   saleId,
@@ -32,7 +51,7 @@ export function BuyButton({
   }
 
   if (state.phase === "accepted") {
-    return <p>Order accepted! Reference: {state.idempotencyKey}</p>;
+    return <OrderOutcome saleId={saleId} />;
   }
 
   return (

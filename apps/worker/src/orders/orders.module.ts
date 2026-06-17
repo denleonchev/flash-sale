@@ -5,6 +5,7 @@ import { OrderProcessor } from "./order.processor.js";
 import { OrderFinalizer } from "./order.finalizer.js";
 import { OrdersRepository } from "./orders.repository.js";
 import { StockPublisher } from "../realtime/stock.publisher.js";
+import { OrderResultPublisher } from "../realtime/order-result.publisher.js";
 
 /**
  * Orders feature (consumer). `registerQueue` plus the processor/finalizer providers
@@ -13,6 +14,6 @@ import { StockPublisher } from "../realtime/stock.publisher.js";
  */
 @Module({
   imports: [BullModule.registerQueue({ name: ORDER_QUEUE })],
-  providers: [OrderProcessor, OrderFinalizer, OrdersRepository, StockPublisher],
+  providers: [OrderProcessor, OrderFinalizer, OrdersRepository, StockPublisher, OrderResultPublisher],
 })
 export class OrdersModule {}

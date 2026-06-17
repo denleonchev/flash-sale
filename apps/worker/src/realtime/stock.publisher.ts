@@ -1,5 +1,5 @@
 import { Injectable, Logger, type OnModuleDestroy } from "@nestjs/common";
-import { STOCK_CHANNEL, type SaleStockUpdatedPayload } from "@flash-sale/shared";
+import { REDIS_CHANNELS, type SaleStockUpdatedPayload } from "@flash-sale/shared";
 import type { Redis } from "ioredis";
 import { createRedisConnection } from "../redis/redis.connection.js";
 
@@ -18,10 +18,8 @@ export class StockPublisher implements OnModuleDestroy {
   private readonly redis: Redis = createRedisConnection();
 
   async publishStock(payload: SaleStockUpdatedPayload): Promise<void> {
-    await this.redis.publish(STOCK_CHANNEL, JSON.stringify(payload));
-    this.logger.debug(
-      `published stock ${payload.remainingStock} for sale ${payload.saleId}`,
-    );
+    await this.redis.publish(REDIS_CHANNELS.STOCK, JSON.stringify(payload));
+    this.logger.debug(`published stock ${payload.remainingStock} for sale ${payload.saleId}`);
   }
 
   async onModuleDestroy(): Promise<void> {

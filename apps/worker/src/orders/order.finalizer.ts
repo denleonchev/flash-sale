@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import type { OrderJobPayload, OrderStatus } from "@flash-sale/shared";
 import { OrdersRepository } from "./orders.repository.js";
 import { StockPublisher } from "../realtime/stock.publisher.js";
+import { OrderResultPublisher } from "../realtime/order-result.publisher.js";
 
 /** P2002 = unique constraint violation in Prisma — job re-delivered after a crash. */
 function isPrismaUniqueError(e: unknown): boolean {
@@ -32,7 +33,7 @@ function isPrismaUniqueError(e: unknown): boolean {
  *   (§4 steps 9–10, §6). Broadcast is strictly downstream of the authoritative
  *   confirm and does not affect stock correctness — concurrency=1 makes the read
  *   race-free, and the absolute payload is idempotent.
- * - Per-buyer result delivery (FR-18) arrives in a later card.
+ * - Per-buyer result delivery (FR-18): published to ORDER_RESULT_CHANNEL after the stock broadcast.
  */
 @Injectable()
 export class OrderFinalizer {
@@ -41,6 +42,7 @@ export class OrderFinalizer {
   constructor(
     private readonly ordersRepo: OrdersRepository,
     private readonly stockPublisher: StockPublisher,
+    private readonly orderResultPublisher: OrderResultPublisher,
   ) {}
 
   /** Payment simulation. Always succeeds until S-4.2 wires in the failure branch. */
@@ -78,6 +80,13 @@ export class OrderFinalizer {
 
     // FR-17: tell everyone watching the sale the new number (api relays via socket).
     await this.stockPublisher.publishStock({ saleId: job.saleId, remainingStock });
+
+    // FR-18: tell the buyer their personal result (api routes to private user room).
+    await this.orderResultPublisher.publishOrderResult({
+      buyerId: job.buyerId,
+      saleId: job.saleId,
+      status: finalStatus,
+    });
 
     this.logger.log(`finalized order ${job.idempotencyKey} -> ${finalStatus}`);
   }

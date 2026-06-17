@@ -4,7 +4,7 @@ import {
   type OnModuleDestroy,
   type OnModuleInit,
 } from "@nestjs/common";
-import { STOCK_CHANNEL, type SaleStockUpdatedPayload } from "@flash-sale/shared";
+import { REDIS_CHANNELS, type SaleStockUpdatedPayload } from "@flash-sale/shared";
 import type { Redis } from "ioredis";
 import { createRedisConnection } from "../redis/redis.connection.js";
 import { SaleGateway } from "./sale.gateway.js";
@@ -30,11 +30,11 @@ export class StockSubscriber implements OnModuleInit, OnModuleDestroy {
   constructor(private readonly gateway: SaleGateway) {}
 
   async onModuleInit(): Promise<void> {
-    await this.redis.subscribe(STOCK_CHANNEL);
+    await this.redis.subscribe(REDIS_CHANNELS.STOCK);
     this.redis.on("message", (_channel, message) => {
       this.handleMessage(message);
     });
-    this.logger.log(`subscribed to ${STOCK_CHANNEL}`);
+    this.logger.log(`subscribed to ${REDIS_CHANNELS.STOCK}`);
   }
 
   private handleMessage(message: string): void {

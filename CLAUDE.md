@@ -55,9 +55,11 @@ Subagents (specialised roles):
 
 ## Plans
 
-Finalized implementation plans live in `.claude/plans/<short-slug>.md`, versioned with
-the code. Plan mode's scratch file is under `~/.claude/`; copy the approved plan here so
-it travels with the repo and any model/agent can pick it up.
+Finalized implementation plans live in `.claude/plans/<short-slug>.md`. This directory
+is **gitignored on purpose — plans are not versioned**. Plan mode's scratch file is
+under `~/.claude/`; copy the approved plan here so it sits alongside the code locally
+and any model/agent can pick it up. Do not commit plans or remove the `.gitignore`
+entry.
 
 ## Golden rules (summary — full text in the rule files)
 

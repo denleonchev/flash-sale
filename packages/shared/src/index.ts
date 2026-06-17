@@ -12,8 +12,20 @@
  * - `confirmed` — worker committed the order in a Postgres transaction.
  * - `sold_out`  — guarded Postgres write found no remaining stock (arrives in S-4.1).
  * - `failed`    — payment failed; the reserved unit was released (arrives in S-4.2).
+ *
+ * Defined as `as const` array so web can pass it directly to `z.enum(ORDER_STATUSES)`
+ * and Prisma queries can spread it into `{ in: [...ORDER_STATUSES] }`. (memory: constants-over-literals)
  */
-export type OrderStatus = "confirmed" | "sold_out" | "failed";
+export const ORDER_STATUSES = {
+  CONFIRMED: "confirmed",
+  SOLD_OUT: "sold_out",
+  FAILED: "failed",
+} as const;
+
+export type OrderStatus = (typeof ORDER_STATUSES)[keyof typeof ORDER_STATUSES];
+
+/** All order status values as a tuple — for `z.enum(ORDER_STATUS_VALUES)` and Prisma `{ in: [...] }`. */
+export const ORDER_STATUS_VALUES = Object.values(ORDER_STATUSES) as [OrderStatus, ...OrderStatus[]];
 
 /**
  * BullMQ queue and job names. Shared so the api producer and the worker consumer
@@ -35,6 +47,8 @@ export const SOCKET_EVENTS = {
   SALE_SUBSCRIBE: "sale:subscribe",
   /** Server → clients event: the sale's remaining stock changed. (FR-17) */
   SALE_STOCK_UPDATED: "sale:stock:updated",
+  /** Server → client (private room) event: the buyer's own order result. (FR-18) */
+  ORDER_RESULT_UPDATED: "order:result:updated",
 } as const;
 
 /** The room id a client joins to receive live updates for one sale. */
@@ -42,12 +56,20 @@ export function getSaleRoomId(saleId: string): string {
   return `sale:${saleId}`;
 }
 
+/** The private room id an authenticated buyer is placed in on connect. (FR-18) */
+export function getUserRoomId(buyerId: string): string {
+  return `user:${buyerId}`;
+}
+
 /**
- * Redis pub/sub channel the `worker` publishes post-confirm stock counts to, and
- * the `api` subscribes to and relays into sale rooms over Socket.IO (§4 steps 9–10,
- * §6). The message body is a `SaleStockUpdatedPayload`. (FR-17, NFR-10)
+ * Redis pub/sub channels shared between `worker` (publisher) and `api` (subscriber).
+ * - `STOCK` — post-confirm remaining stock; body: `SaleStockUpdatedPayload`. (FR-17, NFR-10)
+ * - `ORDER_RESULT` — per-buyer order result; body: `OrderResult`. (FR-18, NFR-10)
  */
-export const STOCK_CHANNEL = "stock:updates";
+export const REDIS_CHANNELS = {
+  STOCK: "stock:updates",
+  ORDER_RESULT: "order:results",
+} as const;
 
 /** Payload broadcast on `SOCKET_EVENTS.SALE_STOCK_UPDATED`. */
 export interface SaleStockUpdatedPayload {
@@ -77,16 +99,22 @@ export interface OrderJobPayload {
 }
 
 /**
- * Result the `worker` publishes to Redis pub/sub after processing a job; the
- * `api` relays it to the buyer over Socket.IO (§4 steps 9–10).
+ * Result the `worker` publishes to `ORDER_RESULT_CHANNEL` after processing a job;
+ * the `api` routes it to the buyer's private socket room. (FR-18, §4 steps 9–10)
  */
 export interface OrderResult {
-  /** Echoes the job's idempotency key so the api can route the result. */
-  idempotencyKey: string;
+  /** Used by the api to route the event to the buyer's private room. */
+  buyerId: string;
+  /** Context for the client — which sale this result belongs to. */
+  saleId: string;
   /** Terminal status of the processed order. */
   status: OrderStatus;
-  /** Stock remaining for the sale after processing, for the live broadcast. */
-  remainingStock: number;
+}
+
+/** Payload of the `SOCKET_EVENTS.ORDER_RESULT_UPDATED` event (server → client). (FR-18) */
+export interface OrderResultUpdatedPayload {
+  saleId: string;
+  status: OrderStatus;
 }
 
 /**

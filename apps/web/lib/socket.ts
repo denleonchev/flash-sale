@@ -19,10 +19,25 @@ let socket: Socket | undefined;
  * client-side navigations, so moving between sale pages does not tear down and rebuild
  * the connection, and React StrictMode's double-mount in dev does not churn it.
  *
+ * An `auth` callback fetches a fresh HMAC ticket from `/api/socket-ticket` on every
+ * (re)connect. Authenticated → api joins the socket to the buyer's private room.
+ * Anonymous (ticket: null) → socket stays in public sale rooms only. (FR-18)
+ *
  * Consumers attach and detach their own listeners (and join sale rooms); they must
  * NOT disconnect this shared socket.
  */
 export function getSocket(): Socket {
-  socket ??= io(getSocketUrl(), { transports: ["websocket"] });
+  socket ??= io(getSocketUrl(), {
+    transports: ["websocket"],
+    auth: async (cb: (data: Record<string, unknown>) => void) => {
+      try {
+        const res = await fetch("/api/socket-ticket");
+        const { ticket } = (await res.json()) as { ticket: string | null };
+        cb(ticket ? { ticket } : {});
+      } catch {
+        cb({});
+      }
+    },
+  });
   return socket;
 }

@@ -1,5 +1,5 @@
 import { ConflictException, Injectable } from "@nestjs/common";
-import { SALE_STATES } from "@flash-sale/shared";
+import { SALE_STATES, type OrderResultUpdatedPayload } from "@flash-sale/shared";
 import { SalesService } from "../sales/sales.service.js";
 import { OrderProducer } from "./order.producer.js";
 import { OrdersRepository } from "./orders.repository.js";
@@ -66,5 +66,12 @@ export class OrdersService {
     }
 
     return { status: "accepted", idempotencyKey };
+  }
+
+  /** Delegates to repository; used by the gateway for FR-19 reconnect snapshot. */
+  getLatestFinalizedOrder(
+    buyerId: string,
+  ): Promise<OrderResultUpdatedPayload | null> {
+    return this.ordersRepository.getLatestFinalizedOrder(buyerId);
   }
 }
