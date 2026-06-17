@@ -71,7 +71,8 @@ export class OrdersService {
   /** Delegates to repository; used by the gateway for FR-19 reconnect snapshot. */
   getLatestFinalizedOrder(
     buyerId: string,
+    saleId: string,
   ): Promise<OrderResultUpdatedPayload | null> {
-    return this.ordersRepository.getLatestFinalizedOrder(buyerId);
+    return this.ordersRepository.getLatestFinalizedOrder(buyerId, saleId);
   }
 }

@@ -42,9 +42,13 @@ export class SaleGateway implements OnGatewayConnection {
 
   /**
    * On connect: verify the HMAC ticket from `socket.handshake.auth.ticket`.
-   * Authenticated → join `user:<buyerId>` room + emit last finalized order snapshot
-   * (FR-19 reconnect recovery). Unauthenticated or missing ticket → remain anon;
-   * still receives public stock. Never disconnects an anon socket. (FR-18)
+   * Authenticated → join `user:<buyerId>` room and stash `buyerId` on the socket.
+   * Unauthenticated or missing ticket → remain anon; still receives public stock.
+   * Never disconnects an anon socket. (FR-18)
+   *
+   * The per-buyer result snapshot is NOT pushed here — at connect time the buyer has
+   * not yet subscribed to a sale, so `saleId` is unknown. It is pushed per-sale on
+   * (re)subscribe instead (see handleSaleSubscribe, FR-19).
    *
    * Concurrency note: the buyer's socket joins the private room BEFORE any Buy click,
    * so there is no race between "result published" and "room joined". (S-3.2 plan §Correctness)
@@ -62,19 +66,13 @@ export class SaleGateway implements OnGatewayConnection {
     socket.data.buyerId = buyerId;
     await socket.join(getUserRoomId(buyerId));
     this.logger.log(`socket ${socket.id} joined user room for ${buyerId}`);
-
-    // FR-19: push snapshot of last finalized order so a reconnected client recovers
-    // without waiting for the next worker event.
-    const snapshot = await this.ordersService.getLatestFinalizedOrder(buyerId);
-    if (snapshot) {
-      socket.emit(SOCKET_EVENTS.ORDER_RESULT_UPDATED, snapshot);
-    }
   }
 
   /**
-   * Client asks to follow one sale → join its room. On (re)subscribe we push the
-   * current stock snapshot to this client alone so a freshly connected or reconnected
-   * client never shows a stale number. (FR-17, FR-19)
+   * Client asks to follow one sale → join its room. On (re)subscribe we push two
+   * snapshots to this client alone so a freshly connected or reconnected client never
+   * shows stale data (FR-19): the current stock (FR-17), and — for an authenticated
+   * buyer — their own latest result for THIS sale (FR-18).
    */
   @SubscribeMessage(SOCKET_EVENTS.SALE_SUBSCRIBE)
   async handleSaleSubscribe(
@@ -95,6 +93,20 @@ export class SaleGateway implements OnGatewayConnection {
         remainingStock: sale.remainingStock,
       } satisfies SaleStockUpdatedPayload);
     }
+
+    // FR-19: an authenticated buyer recovers their own result for this sale on
+    // (re)subscribe, without waiting for the next worker event. Anon → skip.
+    const buyerId = socket.data.buyerId as string | undefined;
+    if (buyerId) {
+      const result = await this.ordersService.getLatestFinalizedOrder(
+        buyerId,
+        data.saleId,
+      );
+      if (result) {
+        socket.emit(SOCKET_EVENTS.ORDER_RESULT_UPDATED, result);
+      }
+    }
+
     return { subscribed: room };
   }
 

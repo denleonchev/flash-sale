@@ -18,15 +18,16 @@ export class OrdersRepository {
   }
 
   /**
-   * Last finalized order for a buyer (any sale), ordered by `createdAt desc`.
-   * Used to push a snapshot on socket reconnect (FR-19). Returns null if no
-   * finalized order exists yet.
+   * Last finalized order for a buyer on one sale, ordered by `createdAt desc`.
+   * Used to push a snapshot on (re)subscribe so a reconnected client recovers its
+   * own result for the sale it is viewing (FR-19). Returns null if none exists yet.
    */
   async getLatestFinalizedOrder(
     buyerId: string,
+    saleId: string,
   ): Promise<OrderResultUpdatedPayload | null> {
     const row = await this.prisma.db.order.findFirst({
-      where: { buyerId, status: { in: ORDER_STATUS_VALUES } },
+      where: { buyerId, saleId, status: { in: ORDER_STATUS_VALUES } },
       select: { saleId: true, status: true },
       orderBy: { createdAt: "desc" },
     });
