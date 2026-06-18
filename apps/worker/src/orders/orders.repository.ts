@@ -36,11 +36,13 @@ export class OrdersRepository {
       }
       const stockTotal = rows[0]!.stock_total;
 
-      const confirmed = await tx.order.count({
+      const confirmedOrdersNumber = await tx.order.count({
         where: { saleId: job.saleId, status: OrderStatus.confirmed },
       });
       const status =
-        confirmed < stockTotal ? OrderStatus.confirmed : OrderStatus.sold_out;
+        confirmedOrdersNumber < stockTotal
+          ? OrderStatus.confirmed
+          : OrderStatus.sold_out;
 
       await tx.order.create({
         data: {
@@ -50,7 +52,25 @@ export class OrdersRepository {
           status,
         },
       });
-      return { status, remaining: await this.readRemainingStock(tx, job.saleId) };
+      return {
+        status,
+        remaining: await this.readRemainingStock(tx, job.saleId),
+      };
+    });
+  }
+
+  /**
+   * Creates a failed order row — no row lock needed because a `failed` order
+   * does not claim stock (remaining = stockTotal − confirmed only). (FR-11)
+   */
+  async createFailedOrder(job: OrderJobPayload): Promise<void> {
+    await this.prisma.db.order.create({
+      data: {
+        saleId: job.saleId,
+        buyerId: job.buyerId,
+        idempotencyKey: job.idempotencyKey,
+        status: OrderStatus.failed,
+      },
     });
   }
 
@@ -76,7 +96,9 @@ export class OrdersRepository {
   ): Promise<number> {
     const sale = await client.sale.findUnique({
       where: { id: saleId },
-      include: { _count: { select: { orders: { where: { status: "confirmed" } } } } },
+      include: {
+        _count: { select: { orders: { where: { status: "confirmed" } } } },
+      },
     });
     if (!sale) return 0;
     return Math.max(0, sale.stockTotal - sale._count.orders);

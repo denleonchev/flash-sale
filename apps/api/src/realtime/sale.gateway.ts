@@ -69,13 +69,11 @@ export class SaleGateway implements OnGatewayConnection {
   }
 
   /**
-   * Client asks to follow one sale → join its room. On (re)subscribe we push two
-   * snapshots to this client alone so a freshly connected or reconnected client never
-   * shows stale data (FR-19): the current stock (FR-17), and — for an authenticated
-   * buyer — their own latest result for THIS sale (FR-18).
+   * Client asks for live stock updates → join sale room + push current stock snapshot
+   * so a freshly connected or reconnected client never shows stale data (FR-17, FR-19).
    */
-  @SubscribeMessage(SOCKET_EVENTS.SALE_SUBSCRIBE)
-  async handleSaleSubscribe(
+  @SubscribeMessage(SOCKET_EVENTS.SALE_STOCK_SUBSCRIBE)
+  async handleSaleStockSubscribe(
     @MessageBody() data: { saleId?: unknown },
     @ConnectedSocket() socket: Socket,
   ): Promise<{ subscribed: string } | { error: string }> {
@@ -94,20 +92,21 @@ export class SaleGateway implements OnGatewayConnection {
       } satisfies SaleStockUpdatedPayload);
     }
 
-    // FR-19: an authenticated buyer recovers their own result for this sale on
-    // (re)subscribe, without waiting for the next worker event. Anon → skip.
-    const buyerId = socket.data.buyerId as string | undefined;
-    if (buyerId) {
-      const result = await this.ordersService.getLatestFinalizedOrder(
-        buyerId,
-        data.saleId,
-      );
-      if (result) {
-        socket.emit(SOCKET_EVENTS.ORDER_RESULT_UPDATED, result);
-      }
-    }
-
     return { subscribed: room };
+  }
+
+  /** FR-18/FR-19: buyer subscribes to their order result for one sale. Delivers the latest finalized result immediately if one exists. */
+  @SubscribeMessage(SOCKET_EVENTS.ORDER_RESULT_SUBSCRIBE)
+  async handleOrderResultSubscribe(
+    @MessageBody() data: { saleId?: unknown },
+    @ConnectedSocket() socket: Socket,
+  ): Promise<void> {
+    const buyerId = socket.data.buyerId as string | undefined;
+    if (!buyerId || typeof data?.saleId !== "string" || !data.saleId) return;
+    const result = await this.ordersService.getLatestFinalizedOrder(buyerId, data.saleId);
+    if (result) {
+      socket.emit(SOCKET_EVENTS.ORDER_RESULT_UPDATED, result);
+    }
   }
 
   /** Emit new stock to everyone watching the sale. Redis adapter fans out cross-instance. (FR-17) */

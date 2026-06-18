@@ -43,8 +43,10 @@ export const ORDER_JOB = "process-order";
  * a broadcast reaches a client whichever api instance it is connected to. (NFR-10)
  */
 export const SOCKET_EVENTS = {
-  /** Client → server command: follow one sale, i.e. join its room. (FR-17, FR-19) */
-  SALE_SUBSCRIBE: "sale:subscribe",
+  /** Client → server command: subscribe to live stock updates for one sale. (FR-17, FR-19) */
+  SALE_STOCK_SUBSCRIBE: "sale:stock:subscribe",
+  /** Client → server command: subscribe to order result updates for this sale. (FR-18, FR-19) */
+  ORDER_RESULT_SUBSCRIBE: "order:result:subscribe",
   /** Server → clients event: the sale's remaining stock changed. (FR-17) */
   SALE_STOCK_UPDATED: "sale:stock:updated",
   /** Server → client (private room) event: the buyer's own order result. (FR-18) */

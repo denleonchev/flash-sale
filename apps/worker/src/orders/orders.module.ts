@@ -4,6 +4,7 @@ import { ORDER_QUEUE } from "@flash-sale/shared";
 import { OrderProcessor } from "./order.processor.js";
 import { OrderFinalizer } from "./order.finalizer.js";
 import { OrdersRepository } from "./orders.repository.js";
+import { StockReleaseService } from "./stock-release.service.js";
 import { StockPublisher } from "../realtime/stock.publisher.js";
 import { OrderResultPublisher } from "../realtime/order-result.publisher.js";
 
@@ -14,6 +15,6 @@ import { OrderResultPublisher } from "../realtime/order-result.publisher.js";
  */
 @Module({
   imports: [BullModule.registerQueue({ name: ORDER_QUEUE })],
-  providers: [OrderProcessor, OrderFinalizer, OrdersRepository, StockPublisher, OrderResultPublisher],
+  providers: [OrderProcessor, OrderFinalizer, OrdersRepository, StockReleaseService, StockPublisher, OrderResultPublisher],
 })
 export class OrdersModule {}
