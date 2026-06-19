@@ -1,10 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
-import {
-  ORDER_STATUSES,
-  type OrderJobPayload,
-  type OrderStatus,
-} from "@flash-sale/shared";
-import { OrdersRepository } from "./orders.repository.js";
+import { type OrderJobPayload } from "@flash-sale/shared";
+import { OrdersRepository, type GuardedOrderResult } from "./orders.repository.js";
 import { StockReleaseService } from "./stock-release.service.js";
 import { StockPublisher } from "../realtime/stock.publisher.js";
 import { OrderResultPublisher } from "../realtime/order-result.publisher.js";
@@ -46,30 +42,7 @@ export class OrderFinalizer {
   }
 
   async finalizeOrder(job: OrderJobPayload): Promise<void> {
-    // FR-13: every job must produce exactly one terminal status.
-    const { success } = this.simulatePayment(job);
-    let finalStatus: OrderStatus;
-    let finalOrderId: string;
-    let remainingStock: number;
-
-    if (success) {
-      // Success path: guarded UPDATE decides confirmed vs sold_out under sale-row lock.
-      // count=0 (redelivery): reads back the existing terminal row, republishes.
-      const result = await this.ordersRepo.confirmOrderGuarded(job);
-      finalOrderId = result.orderId;
-      finalStatus = result.status;
-      remainingStock = result.remaining;
-    } else {
-      // Failure path: transition in_progress→failed, release Redis unit if we made
-      // the transition (count>0). count=0 means already terminal → skip release.
-      const { count, orderId } = await this.ordersRepo.failOrder(job);
-      finalOrderId = orderId;
-      finalStatus = ORDER_STATUSES.FAILED;
-      if (count > 0) {
-        await this.stockReleaseService.releaseStock(job.saleId, job.quantity);
-      }
-      remainingStock = await this.ordersRepo.getRemainingStock(job.saleId);
-    }
+    const { status, orderId, remainingStock } = await this.resolveOrder(job);
 
     // FR-17: tell everyone watching the sale the new stock count.
     await this.stockPublisher.publishStock({
@@ -81,10 +54,30 @@ export class OrderFinalizer {
     await this.orderResultPublisher.publishOrderResult({
       buyerId: job.buyerId,
       saleId: job.saleId,
-      status: finalStatus,
-      orderId: finalOrderId,
+      status,
+      orderId,
     });
 
-    this.logger.log(`finalized order ${job.idempotencyKey} -> ${finalStatus}`);
+    this.logger.log(`finalized order ${job.idempotencyKey} -> ${status}`);
+  }
+
+  /**
+   * Runs payment and transitions the in_progress row to its terminal status. (FR-13)
+   * Returns the resolved status, orderId, and post-write remainingStock for publishing.
+   */
+  private async resolveOrder(job: OrderJobPayload): Promise<GuardedOrderResult> {
+    if (this.simulatePayment(job).success) {
+      // Success: guarded UPDATE decides confirmed vs sold_out under sale-row lock.
+      // count=0 (redelivery) → reads back the existing terminal row. (NFR-2)
+      return this.ordersRepo.confirmOrderGuarded(job);
+    }
+
+    // Failure: transition in_progress→failed, release Redis unit only if we made
+    // the transition. transitioned=false means already terminal → skip to avoid double-release.
+    const { updatedCount, ...result } = await this.ordersRepo.failOrder(job);
+    if (updatedCount > 0) {
+      await this.stockReleaseService.releaseStock(job.saleId, job.quantity);
+    }
+    return result;
   }
 }

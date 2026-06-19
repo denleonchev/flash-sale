@@ -6,7 +6,7 @@ import { PrismaService } from "../db/prisma.service.js";
 export interface GuardedOrderResult {
   readonly orderId: string;
   readonly status: OrderStatus;
-  readonly remaining: number;
+  readonly remainingStock: number;
 }
 
 /**
@@ -45,10 +45,13 @@ export class OrdersRepository {
         where: { saleId: job.saleId, status: OrderStatus.confirmed },
       });
       const targetStatus =
-        confirmedCount < stockTotal ? OrderStatus.confirmed : OrderStatus.sold_out;
+        confirmedCount < stockTotal
+          ? OrderStatus.confirmed
+          : OrderStatus.sold_out;
 
       // Guard: WHERE status = in_progress ensures at-most-once semantics on retry.
-      const { count } = await tx.order.updateMany({
+      // If the row is already terminal (crash + BullMQ redelivery), updateMany is a no-op.
+      await tx.order.updateMany({
         where: {
           idempotencyKey: job.idempotencyKey,
           status: OrderStatus.in_progress,
@@ -56,26 +59,13 @@ export class OrdersRepository {
         data: { status: targetStatus },
       });
 
-      if (count === 0) {
-        // Already terminal (crash + BullMQ redelivery). Read back the existing row.
-        const existing = await tx.order.findUniqueOrThrow({
-          where: { idempotencyKey: job.idempotencyKey },
-        });
-        return {
-          orderId: existing.id,
-          status: existing.status,
-          remaining: await this.readRemainingStock(tx, job.saleId),
-        };
-      }
-
-      const updated = await tx.order.findUniqueOrThrow({
+      const order = await tx.order.findUniqueOrThrow({
         where: { idempotencyKey: job.idempotencyKey },
-        select: { id: true },
       });
       return {
-        orderId: updated.id,
-        status: targetStatus,
-        remaining: await this.readRemainingStock(tx, job.saleId),
+        orderId: order.id,
+        status: order.status,
+        remainingStock: await this.readRemainingStock(tx, job.saleId),
       };
     });
   }
@@ -90,8 +80,8 @@ export class OrdersRepository {
    */
   async failOrder(
     job: OrderJobPayload,
-  ): Promise<{ count: number; orderId: string }> {
-    const { count } = await this.prisma.db.order.updateMany({
+  ): Promise<GuardedOrderResult & { updatedCount: number }> {
+    const { count: updatedCount } = await this.prisma.db.order.updateMany({
       where: {
         idempotencyKey: job.idempotencyKey,
         status: OrderStatus.in_progress,
@@ -102,7 +92,12 @@ export class OrdersRepository {
       where: { idempotencyKey: job.idempotencyKey },
       select: { id: true },
     });
-    return { count, orderId: order.id };
+    return {
+      updatedCount,
+      orderId: order.id,
+      status: OrderStatus.failed,
+      remainingStock: await this.getRemainingStock(job.saleId),
+    };
   }
 
   /** Returns the existing order row. Used on the count===0 idempotency path. */
