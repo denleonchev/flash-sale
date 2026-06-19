@@ -26,7 +26,7 @@ export function useOrderResult(saleId: string): OrderStatus | null {
       if (!parsed.success || parsed.data.saleId !== saleId) return;
       setStatus(parsed.data.status);
       // Suppress this result from future reconnect snapshots once the buyer has seen it.
-      // Only confirmed/sold_out generate snapshots; failed is already excluded server-side.
+      // in_progress is not acknowledged — it transitions to a terminal status via the worker.
       if (
         parsed.data.status === ORDER_STATUSES.CONFIRMED ||
         parsed.data.status === ORDER_STATUSES.SOLD_OUT ||

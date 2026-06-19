@@ -14,7 +14,7 @@ import { OrderFinalizer } from "./order.finalizer.js";
  *
  * The handler must be idempotent: after a crash BullMQ may re-deliver the job,
  * and a retry must not double its effect (NFR-2). Idempotency is enforced in
- * OrderFinalizer via UNIQUE(idempotency_key) + P2002 catch.
+ * OrderFinalizer via guarded UPDATE (WHERE status = in_progress) + count===0 read-back.
  */
 @Processor(ORDER_QUEUE, { concurrency: 1 })
 export class OrderProcessor extends WorkerHost {

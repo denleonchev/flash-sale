@@ -1,7 +1,5 @@
 "use client";
 
-"use client";
-
 import { useEffect, useState } from "react";
 import { SOCKET_EVENTS } from "@flash-sale/shared";
 import { getSocket } from "@/lib/socket";
