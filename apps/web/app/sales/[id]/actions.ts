@@ -4,19 +4,21 @@ import { apiFetch } from "@/lib/api";
 import { auth0 } from "@/lib/auth0";
 import { encodeBuyerId } from "@/lib/buyer-id";
 
-type BuyResult =
-  | { ok: true; status: string; idempotencyKey: string }
-  | { ok: false; message: string };
+export type BuyState = {
+  errorMessage?: string;
+  idempotencyKey?: string;
+};
 
 /**
- * Places an order for the signed-in buyer (S-2.5, FR-6). Identity comes from the
- * Auth0 session server-side — never from the client (NFR-9). Signed-out → rejected
- * here, before any api call, so no order is created.
+ * Places an order for the signed-in buyer (S-2.5, FR-6). Matches the
+ * `useActionState` signature so callers can use `.bind(null, saleId)` directly
+ * without a client-side wrapper. Identity comes from the Auth0 session
+ * server-side — never from the client (NFR-9).
  */
-export async function buyAction(saleId: string): Promise<BuyResult> {
+export async function buyAction(saleId: string): Promise<BuyState> {
   const session = await auth0.getSession();
   if (!session) {
-    return { ok: false, message: "Sign in required" };
+    return { errorMessage: "Sign in required" };
   }
   const buyerId = encodeBuyerId(session.user.sub);
 
@@ -28,17 +30,17 @@ export async function buyAction(saleId: string): Promise<BuyResult> {
       body: JSON.stringify({ saleId, buyerId, quantity: 1 }),
     });
   } catch {
-    return { ok: false, message: "Network error" };
+    return { errorMessage: "Network error" };
   }
 
   if (res.status === 409) {
     const body = (await res.json()) as { message: string };
-    return { ok: false, message: body.message };
+    return { errorMessage: body.message };
   }
   if (!res.ok) {
-    return { ok: false, message: `Unexpected error (${res.status})` };
+    return { errorMessage: `Unexpected error (${res.status})` };
   }
 
   const body = (await res.json()) as { status: string; idempotencyKey: string };
-  return { ok: true, ...body };
+  return { idempotencyKey: body.idempotencyKey };
 }

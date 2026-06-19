@@ -3,6 +3,7 @@
 import { BuyButton } from "./buy-button";
 import { Countdown } from "./countdown";
 import { useSaleStock } from "./use-sale-stock";
+import { useOrderResult } from "./use-order-result";
 
 /**
  * Live view of an in-progress sale (S-3.1, FR-17). Renders the live stock count
@@ -23,6 +24,7 @@ export function LiveStock({
   serverNow: string;
 }) {
   const stock = useSaleStock(saleId, initialStock);
+  const orderStatus = useOrderResult(saleId);
 
   if (stock <= 0) {
     return (
@@ -40,7 +42,7 @@ export function LiveStock({
       <p>
         Ends in <Countdown targetAt={endsAt} serverNow={serverNow} />
       </p>
-      <BuyButton saleId={saleId} signedIn={signedIn} />
+      <BuyButton saleId={saleId} signedIn={signedIn} orderStatus={orderStatus} />
     </>
   );
 }
