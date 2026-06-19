@@ -4,6 +4,7 @@ import { ORDER_QUEUE } from "@flash-sale/shared";
 import { SalesModule } from "../sales/sales.module.js";
 import { StockModule } from "../stock/stock.module.js";
 import { OrderProducer } from "./order.producer.js";
+import { OrderResultPublisher } from "./order-result.publisher.js";
 import { OrdersController } from "./orders.controller.js";
 import { OrdersService } from "./orders.service.js";
 import { OrdersRepository } from "./orders.repository.js";
@@ -15,7 +16,7 @@ import { OrdersRepository } from "./orders.repository.js";
     StockModule,
   ],
   controllers: [OrdersController],
-  providers: [OrdersService, OrderProducer, OrdersRepository],
+  providers: [OrdersService, OrderProducer, OrderResultPublisher, OrdersRepository],
   exports: [OrdersService],
 })
 export class OrdersModule {}

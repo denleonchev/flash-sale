@@ -136,21 +136,24 @@ rather than restating the mechanism. (FR-8 to FR-16, NFR-1, NFR-3)
    simultaneous buyers cannot both succeed on the last unit — Redis serialises the
    operation. Below zero → **sold out**, request rejected, nothing queued. (FR-8,
    FR-15, FR-13)
-4. **api enqueues** the order in BullMQ with the idempotency key as the **job id**,
-   so a duplicate request maps to the same job and cannot create a second order.
-   (FR-9, FR-14)
-5. **api responds immediately**: "accepted, processing". The hot path did one Redis
-   op and one enqueue — nothing slow. (NFR-3)
+4. **api creates the order row as `in_progress`** in Postgres (variant 1). The
+   `UNIQUE(idempotency_key)` makes this the atomic dedup point: a double-click loses
+   the race here (P2002) and releases its extra reservation. The durable row lets a
+   reconnecting buyer recover "your order is processing" (FR-19). (FR-9, FR-14)
+5. **api enqueues** the order in BullMQ with the idempotency key as the **job id**,
+   then responds immediately: "accepted, processing". The hot path did one Redis op,
+   one light INSERT and one enqueue — the slow work (payment) stays in the worker.
+   (FR-9, NFR-3)
 6. **worker picks up the job** and processes it, one at a time per event. (FR-10)
 7. **worker runs the payment step.** Default: a simulated payment returning
    success/failure. Optional (Ext): a real provider in test mode driving the same
    outcome. (FR-11, FR-12)
-8. **worker writes the result in a Postgres transaction:**
-   - **success** → create the order row as `confirmed`. A guarded write
-     (`UPDATE ... WHERE stock > 0` / row lock) is the final authority on stock, so
-     the DB can never be pushed below zero even if Redis and the DB disagree.
-     (FR-13, FR-15)
-   - **failure** → mark `failed` and **release the reserved unit** back to Redis so
+8. **worker transitions the row in a Postgres transaction** (guarded by `WHERE
+   status = in_progress` so a re-delivered job acts at most once):
+   - **success** → a guarded write (sale-row lock + `confirmed < stock_total`) sets
+     `confirmed`, else `sold_out`. The lock is the final authority on stock, so the
+     DB can never exceed stock_total even if Redis and the DB disagree. (FR-13, FR-15)
+   - **failure** → set `failed` and **release the reserved unit** back to Redis so
      it can be sold again. (FR-11, FR-16)
 9. **worker publishes the outcome** to Redis pub/sub.
 10. **api relays** the result to the buyer over Socket.IO and broadcasts the new
@@ -173,9 +176,10 @@ state, a `vector` column (pgvector) for optional search.
 - **sales** — `id`, `product_id`, `stock_total`, `starts_at`, `ends_at`. State
   (upcoming/live/ended) is derived, not stored. (FR-2)
 - **orders** — `id`, `sale_id`, `buyer_id`, `idempotency_key` (unique per
-  buyer+sale), `status` (pending | confirmed | sold_out | failed), `payment_ref`
-  _(Ext)_, `created_at`. The unique key enforces idempotency at the DB level too.
-  (FR-14)
+  buyer+sale), `status` (in_progress | confirmed | sold_out | failed), `payment_ref`
+  _(Ext)_, `created_at`. api writes `in_progress` before enqueue; the worker
+  transitions it to exactly one terminal status. The unique key enforces idempotency
+  at the DB level too. (FR-14)
 - **order_events** — `id`, `order_id`, `type`, `payload JSONB`, `created_at`.
   Append-only log (reserved, paid, confirmed, released, screened…). The JSONB
   payload is the NoSQL part: different event types carry different shapes.

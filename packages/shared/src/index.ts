@@ -8,15 +8,18 @@
  */
 
 /**
- * Terminal lifecycle states of an order. Mirrors the `orders.status` column in §5.
- * - `confirmed` — worker committed the order in a Postgres transaction.
- * - `sold_out`  — guarded Postgres write found no remaining stock (arrives in S-4.1).
- * - `failed`    — payment failed; the reserved unit was released (arrives in S-4.2).
+ * Lifecycle states of an order. Mirrors the `orders.status` column in §5.
+ * - `in_progress` — api created the row before enqueue; worker is processing.
+ * - `confirmed`   — worker committed the order in a Postgres transaction.
+ * - `sold_out`    — guarded Postgres write found no remaining stock.
+ * - `failed`      — payment failed; the reserved unit was released.
  *
- * Defined as `as const` array so web can pass it directly to `z.enum(ORDER_STATUSES)`
- * and Prisma queries can spread it into `{ in: [...ORDER_STATUSES] }`. (memory: constants-over-literals)
+ * Defined as `as const` object so web can pass `ORDER_STATUS_VALUES` to
+ * `z.enum(...)` and Prisma queries can spread it into `{ in: [...] }`.
+ * (memory: constants-over-literals)
  */
 export const ORDER_STATUSES = {
+  IN_PROGRESS: "in_progress",
   CONFIRMED: "confirmed",
   SOLD_OUT: "sold_out",
   FAILED: "failed",
@@ -25,7 +28,10 @@ export const ORDER_STATUSES = {
 export type OrderStatus = (typeof ORDER_STATUSES)[keyof typeof ORDER_STATUSES];
 
 /** All order status values as a tuple — for `z.enum(ORDER_STATUS_VALUES)` and Prisma `{ in: [...] }`. */
-export const ORDER_STATUS_VALUES = Object.values(ORDER_STATUSES) as [OrderStatus, ...OrderStatus[]];
+export const ORDER_STATUS_VALUES = Object.values(ORDER_STATUSES) as [
+  OrderStatus,
+  ...OrderStatus[],
+];
 
 /**
  * BullMQ queue and job names. Shared so the api producer and the worker consumer

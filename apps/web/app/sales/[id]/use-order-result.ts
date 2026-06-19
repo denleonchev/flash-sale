@@ -1,7 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ORDER_STATUSES, SOCKET_EVENTS, type OrderStatus } from "@flash-sale/shared";
+import {
+  ORDER_STATUSES,
+  SOCKET_EVENTS,
+  type OrderStatus,
+} from "@flash-sale/shared";
 import { getSocket } from "@/lib/socket";
 import { OrderResultUpdatedSchema } from "@/lib/schemas/order-result-updated.schema";
 
@@ -25,9 +29,12 @@ export function useOrderResult(saleId: string): OrderStatus | null {
       // Only confirmed/sold_out generate snapshots; failed is already excluded server-side.
       if (
         parsed.data.status === ORDER_STATUSES.CONFIRMED ||
-        parsed.data.status === ORDER_STATUSES.SOLD_OUT
+        parsed.data.status === ORDER_STATUSES.SOLD_OUT ||
+        parsed.data.status === ORDER_STATUSES.FAILED
       ) {
-        socket.emit(SOCKET_EVENTS.ORDER_RESULT_UNSUBSCRIBE, { orderId: parsed.data.orderId });
+        socket.emit(SOCKET_EVENTS.ORDER_RESULT_UNSUBSCRIBE, {
+          orderId: parsed.data.orderId,
+        });
       }
     };
 

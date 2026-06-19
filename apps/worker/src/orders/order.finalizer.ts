@@ -9,38 +9,23 @@ import { StockReleaseService } from "./stock-release.service.js";
 import { StockPublisher } from "../realtime/stock.publisher.js";
 import { OrderResultPublisher } from "../realtime/order-result.publisher.js";
 
-/** P2002 = unique constraint violation in Prisma — job re-delivered after a crash. */
-function isPrismaUniqueError(e: unknown): boolean {
-  return (
-    typeof e === "object" &&
-    e !== null &&
-    "code" in e &&
-    (e as { code: unknown }).code === "P2002"
-  );
-}
-
 /**
- * Finalizes one order job: runs payment simulation and writes the terminal order
- * row via OrdersRepository.
+ * Finalizes one order job: runs payment simulation and transitions the in_progress
+ * order row to its terminal status via OrdersRepository.
  *
  * Concurrency correctness (§4, .claude/rules/concurrency.md):
- * - Success path / guarded write (S-4.1, FR-15/NFR-1): createGuardedOrder locks the
- *   sale row inside the tx and confirms only while confirmed < stockTotal, else records
- *   sold_out — DB is the final authority and can never exceed stockTotal.
- * - Failure path (S-4.2, FR-11/FR-16): createFailedOrder writes a `failed` row with
- *   no row lock — `failed` orders are excluded from remaining = stockTotal − confirmed,
- *   so they don't affect the stock guard at all. After the durable DB write,
- *   StockReleaseService.releaseStock runs INCRBY to return the reserved unit to Redis.
- *   Both steps are inside the same try block: if INCRBY crashes, the job rethrows,
- *   BullMQ retries, and the retry hits P2002 on createFailedOrder — the catch path
- *   reads back the existing row and skips the second INCRBY, avoiding double-release.
- *   The cost: if INCRBY never succeeds between retries, one Redis unit stays stuck
- *   (under-counted), but the DB guard prevents oversell regardless.
- * - Idempotency (NFR-2): UNIQUE(idempotency_key) + P2002 catch handles retries for
- *   both paths. The catch reads back the already-written row, so no second order is
- *   created and no second unit is confirmed or double-released.
- * - Live stock (FR-17): after the order is committed we publish the post-confirm
- *   remaining to Redis pub/sub; the api relays it to everyone watching the sale.
+ * - Both paths use guarded UPDATE (`WHERE status = in_progress`) so a re-delivered
+ *   job finds count=0 (row already terminal) and acts at most once.
+ * - Success path / guarded write (S-4.1, FR-15/NFR-1): confirmOrderGuarded locks
+ *   the sale row inside the tx and sets confirmed only while confirmed < stockTotal,
+ *   else sold_out — DB is the final authority and can never exceed stockTotal.
+ * - Failure path (S-4.2, FR-11/FR-16): failOrder transitions in_progress→failed.
+ *   count>0 → we own the release, call INCRBY. count=0 → already terminal, skip
+ *   release. Trade-off: a crash between UPDATE and INCRBY leaves one Redis unit
+ *   stuck (under-counted), but the DB guard prevents oversell regardless.
+ * - Idempotency (NFR-2): the WHERE guard on both paths replaces the old P2002 catch.
+ *   No second INSERT, no second confirm, no double-release.
+ * - Live stock (FR-17): after the transition we publish the post-confirm remaining.
  * - Per-buyer result delivery (FR-18): published after the stock broadcast.
  */
 @Injectable()
@@ -68,55 +53,31 @@ export class OrderFinalizer {
     let remainingStock: number;
 
     if (success) {
-      // Success path: guarded write decides confirmed vs sold_out under the sale-row lock (FR-15).
-      try {
-        const result = await this.ordersRepo.createGuardedOrder(job);
-        finalOrderId = result.orderId;
-        finalStatus = result.status;
-        remainingStock = result.remaining;
-      } catch (e) {
-        if (isPrismaUniqueError(e)) {
-          // Job was already processed (crash + BullMQ retry). Read back the existing
-          // row — do NOT throw (that would cause an infinite retry loop).
-          const existing = await this.ordersRepo.findOrderByIdempotencyKey(
-            job.idempotencyKey,
-          );
-          finalOrderId = existing.id;
-          finalStatus = existing.status as OrderStatus;
-          // Republish the current count (safe at concurrency=1, idempotent payload).
-          remainingStock = await this.ordersRepo.getRemainingStock(job.saleId);
-        } else {
-          throw e;
-        }
-      }
+      // Success path: guarded UPDATE decides confirmed vs sold_out under sale-row lock.
+      // count=0 (redelivery): reads back the existing terminal row, republishes.
+      const result = await this.ordersRepo.confirmOrderGuarded(job);
+      finalOrderId = result.orderId;
+      finalStatus = result.status;
+      remainingStock = result.remaining;
     } else {
-      // Failure path: write failed row then release the reserved Redis unit (FR-11, FR-16).
-      // releaseStock is inside the try so a Redis crash rethrows, BullMQ retries, and the
-      // retry's P2002 on createFailedOrder skips the second INCRBY. See JSDoc above.
-      try {
-        const created = await this.ordersRepo.createFailedOrder(job);
-        finalOrderId = created.orderId;
+      // Failure path: transition in_progress→failed, release Redis unit if we made
+      // the transition (count>0). count=0 means already terminal → skip release.
+      const { count, orderId } = await this.ordersRepo.failOrder(job);
+      finalOrderId = orderId;
+      finalStatus = ORDER_STATUSES.FAILED;
+      if (count > 0) {
         await this.stockReleaseService.releaseStock(job.saleId, job.quantity);
-        finalStatus = ORDER_STATUSES.FAILED;
-      } catch (e) {
-        if (!isPrismaUniqueError(e)) throw e;
-        // Job re-delivered: terminal row already exists; don't re-release Redis stock.
-        const existing = await this.ordersRepo.findOrderByIdempotencyKey(
-          job.idempotencyKey,
-        );
-        finalOrderId = existing.id;
-        finalStatus = existing.status as OrderStatus;
       }
       remainingStock = await this.ordersRepo.getRemainingStock(job.saleId);
     }
 
-    // FR-17: tell everyone watching the sale the new number (api relays via socket).
+    // FR-17: tell everyone watching the sale the new stock count.
     await this.stockPublisher.publishStock({
       saleId: job.saleId,
       remainingStock,
     });
 
-    // FR-18: tell the buyer their personal result (api routes to private user room).
+    // FR-18: tell the buyer their personal result.
     await this.orderResultPublisher.publishOrderResult({
       buyerId: job.buyerId,
       saleId: job.saleId,

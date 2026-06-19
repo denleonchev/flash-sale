@@ -18,68 +18,94 @@ export class OrdersRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * Guarded write — the final authority on stock (§4 step 8, FR-15, NFR-1). In one
-   * $transaction: lock the sale row (SELECT ... FOR UPDATE), then confirm the order
-   * only if confirmed < stockTotal; otherwise record it `sold_out`. The lock
-   * serialises confirmations for THIS sale, so two buyers racing for the last unit
-   * are handled one after another and the DB can never exceed stockTotal — even if
-   * the Redis reserve over-counts. Returns the terminal status and the post-write
-   * remaining (read-your-writes inside the same tx). See .claude/rules/concurrency.md.
+   * Guarded UPDATE — the final authority on stock (§4 step 8, FR-15, NFR-1). In one
+   * $transaction: lock the sale row (SELECT ... FOR UPDATE), count confirmed orders,
+   * then transition this order in_progress → confirmed|sold_out only when
+   * `WHERE status = in_progress` matches. The WHERE guard means a re-delivered job
+   * (count===0) is safe: we read back the already-terminal row instead of writing again.
+   *
+   * Concurrency (.claude/rules/concurrency.md):
+   * - The FOR UPDATE lock serialises confirmations for THIS sale so two buyers racing
+   *   for the last unit are handled one after another — the DB can never exceed
+   *   stockTotal regardless of the Redis counter.
+   * - Idempotency (NFR-2): count===0 means the row is already terminal; we read back
+   *   and republish without a second write. No INSERT P2002 path needed.
    */
-  async createGuardedOrder(job: OrderJobPayload): Promise<GuardedOrderResult> {
+  async confirmOrderGuarded(job: OrderJobPayload): Promise<GuardedOrderResult> {
     return this.prisma.db.$transaction(async (tx) => {
       // Row lock: any concurrent confirm for this sale blocks until we commit.
       const rows = await tx.$queryRaw<{ stock_total: number }[]>`
         SELECT stock_total FROM sales WHERE id = ${job.saleId} FOR UPDATE`;
       if (rows.length === 0) {
-        // The reservation in §4 step 3 ran against this sale, so it must exist.
         throw new Error(`sale ${job.saleId} missing during confirm`);
       }
       const stockTotal = rows[0]!.stock_total;
 
-      const confirmedOrdersNumber = await tx.order.count({
+      const confirmedCount = await tx.order.count({
         where: { saleId: job.saleId, status: OrderStatus.confirmed },
       });
-      const status =
-        confirmedOrdersNumber < stockTotal
-          ? OrderStatus.confirmed
-          : OrderStatus.sold_out;
+      const targetStatus =
+        confirmedCount < stockTotal ? OrderStatus.confirmed : OrderStatus.sold_out;
 
-      const order = await tx.order.create({
-        data: {
-          saleId: job.saleId,
-          buyerId: job.buyerId,
+      // Guard: WHERE status = in_progress ensures at-most-once semantics on retry.
+      const { count } = await tx.order.updateMany({
+        where: {
           idempotencyKey: job.idempotencyKey,
-          status,
+          status: OrderStatus.in_progress,
         },
+        data: { status: targetStatus },
+      });
+
+      if (count === 0) {
+        // Already terminal (crash + BullMQ redelivery). Read back the existing row.
+        const existing = await tx.order.findUniqueOrThrow({
+          where: { idempotencyKey: job.idempotencyKey },
+        });
+        return {
+          orderId: existing.id,
+          status: existing.status,
+          remaining: await this.readRemainingStock(tx, job.saleId),
+        };
+      }
+
+      const updated = await tx.order.findUniqueOrThrow({
+        where: { idempotencyKey: job.idempotencyKey },
         select: { id: true },
       });
       return {
-        orderId: order.id,
-        status,
+        orderId: updated.id,
+        status: targetStatus,
         remaining: await this.readRemainingStock(tx, job.saleId),
       };
     });
   }
 
   /**
-   * Creates a failed order row — no row lock needed because a `failed` order
-   * does not claim stock (remaining = stockTotal − confirmed only). (FR-11)
+   * Transitions the in_progress order to `failed`. The guard `WHERE status =
+   * in_progress` makes this idempotent: a re-delivered job returns count=0 and
+   * the caller skips the Redis release to avoid double-release. (FR-11, FR-16)
+   *
+   * Returns `{ count, orderId }`: count=1 means the transition happened (release
+   * Redis); count=0 means already terminal (skip release).
    */
-  async createFailedOrder(job: OrderJobPayload): Promise<{ orderId: string }> {
-    const order = await this.prisma.db.order.create({
-      data: {
-        saleId: job.saleId,
-        buyerId: job.buyerId,
+  async failOrder(
+    job: OrderJobPayload,
+  ): Promise<{ count: number; orderId: string }> {
+    const { count } = await this.prisma.db.order.updateMany({
+      where: {
         idempotencyKey: job.idempotencyKey,
-        status: OrderStatus.failed,
+        status: OrderStatus.in_progress,
       },
+      data: { status: OrderStatus.failed },
+    });
+    const order = await this.prisma.db.order.findUniqueOrThrow({
+      where: { idempotencyKey: job.idempotencyKey },
       select: { id: true },
     });
-    return { orderId: order.id };
+    return { count, orderId: order.id };
   }
 
-  /** Returns the existing order row. Used on the P2002 idempotency path. */
+  /** Returns the existing order row. Used on the count===0 idempotency path. */
   async findOrderByIdempotencyKey(key: string) {
     return this.prisma.db.order.findUniqueOrThrow({
       where: { idempotencyKey: key },

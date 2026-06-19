@@ -15,8 +15,10 @@ datasource db {
 }
 
 // Mirrors OrderStatus in packages/shared and orders.status in §5.
-// No `pending` value: the worker inserts the terminal status directly (S-2.4).
+// api writes in_progress before enqueue; the worker transitions it to exactly one
+// terminal status (confirmed | sold_out | failed). See §4 purchase flow.
 enum OrderStatus {
+  in_progress
   confirmed
   sold_out
   failed
@@ -41,10 +43,11 @@ model Sale {
 /// A buyer's order for a sale.
 ///
 /// Concurrency note (FR-14 / NFR-2): `idempotency_key` is UNIQUE — the DB-level
-/// backstop for idempotency. The worker inserts the terminal status directly (S-2.4,
-/// variant 2); on a duplicate job delivery the INSERT hits a unique violation (P2002)
-/// and the worker reads back the existing row instead. The guarded stock write (S-4.1)
-/// slots into the same $transaction in §4 step 8.
+/// dedup point. The api INSERTs `in_progress` before enqueue; a double-click loses
+/// the INSERT race on P2002 and releases its reservation. The worker UPDATEs the
+/// row to a terminal status (guarded by `WHERE status = in_progress`) so a
+/// re-delivered job acts at most once without a second INSERT. The guarded stock
+/// write (S-4.1) runs inside the same $transaction in §4 step 8.
 model Order {
   id             String      @id @default(uuid())
   saleId         String      @map("sale_id")
