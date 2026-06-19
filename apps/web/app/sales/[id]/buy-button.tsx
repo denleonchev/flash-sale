@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 import { buyAction } from "./actions";
 import { useOrderResult } from "./use-order-result";
-import type { OrderStatus } from "@flash-sale/shared";
+import { ORDER_STATUSES } from "@flash-sale/shared";
 
 type State =
   | { phase: "idle" }
@@ -12,23 +12,16 @@ type State =
 
 const INITIAL: State = { phase: "idle" };
 
-const RESULT_LABELS: Record<OrderStatus, string> = {
-  confirmed: "Confirmed!",
-  sold_out: "Sold out",
-  failed: "Payment failed",
-};
-
 /**
- * Displays the buy form; on success renders `OrderOutcome` which listens for the
- * per-buyer result over Socket.IO (FR-18). `OrderOutcome` is a separate component
- * so `useOrderResult` is not called conditionally — hooks must be at the top level.
+ * Buy button with retry support (FR-18, FR-16).
+ *
+ * `useOrderResult` is called unconditionally at the top level (hooks rule).
+ * States:
+ *  - confirmed / sold_out → terminal message, no further action.
+ *  - failed               → show "Try again" button so buyer can retry.
+ *  - accepted + no result → "Processing…" while worker runs.
+ *  - idle / error         → buy form.
  */
-function OrderOutcome({ saleId }: { saleId: string }) {
-  const status = useOrderResult(saleId);
-  if (!status) return <p>Processing…</p>;
-  return <p>{RESULT_LABELS[status]}</p>;
-}
-
 export function BuyButton({
   saleId,
   signedIn,
@@ -45,20 +38,27 @@ export function BuyButton({
     INITIAL,
   );
 
+  const orderStatus = useOrderResult(saleId);
+
   // FR-6: signed-out buyers are asked to sign in; no order can be placed.
   if (!signedIn) {
     return <a href={`/auth/login?returnTo=/sales/${saleId}`}>Sign in to buy</a>;
   }
 
-  if (state.phase === "accepted") {
-    return <OrderOutcome saleId={saleId} />;
-  }
+  if (orderStatus === ORDER_STATUSES.CONFIRMED) return <p>Confirmed!</p>;
+  if (orderStatus === ORDER_STATUSES.SOLD_OUT) return <p>Sold out</p>;
+
+  // Worker is still processing — no result yet.
+  if (state.phase === "accepted" && !orderStatus) return <p>Processing…</p>;
 
   return (
     <form action={formAction}>
       <button type="submit" disabled={pending}>
         {pending ? "Processing…" : "Buy"}
       </button>
+      {orderStatus === ORDER_STATUSES.FAILED && (
+        <p>Order failed. Please try again.</p>
+      )}
       {state.phase === "error" && <p>{state.message}</p>}
     </form>
   );

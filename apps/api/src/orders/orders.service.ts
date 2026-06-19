@@ -1,5 +1,9 @@
 import { ConflictException, Injectable } from "@nestjs/common";
-import { SALE_STATES, type OrderResultUpdatedPayload } from "@flash-sale/shared";
+import {
+  SALE_STATES,
+  type OrderResultUpdatedPayload,
+} from "@flash-sale/shared";
+
 import { SalesService } from "../sales/sales.service.js";
 import { OrderProducer } from "./order.producer.js";
 import { OrdersRepository } from "./orders.repository.js";
@@ -19,8 +23,11 @@ export class OrdersService {
    * Hot-path purchase flow (§4 steps 2–5):
    *   validate live → reserve Redis → enqueue → return "accepted".
    *
-   * idempotencyKey = buyerId + saleId so BullMQ collapses duplicate Buy
-   * requests (e.g. double-click) into a single job. (FR-14, NFR-2)
+   * Retry semantics (FR-14, FR-16): a confirmed or sold_out order is permanent —
+   * the buyer cannot buy again. A failed order releases its reserved unit and
+   * ALLOWS a retry. Each retry gets a unique key (`baseKey-r{n}`) so the DB
+   * UNIQUE constraint is not violated; BullMQ deduplicates double-clicks within
+   * the same attempt via the shared jobId.
    */
   async buy(
     dto: CreateOrderDto,
@@ -30,17 +37,26 @@ export class OrdersService {
       throw new ConflictException("sale not live");
     }
 
-    const idempotencyKey = `${dto.buyerId}-${dto.saleId}`;
+    const baseKey = `${dto.buyerId}-${dto.saleId}`;
 
-    // FR-14: parallel check — BullMQ (in-queue/active) and DB (already finalized).
-    // DB backstop needed because removeOnComplete:true removes completed jobs from
-    // BullMQ, so isEnqueued returns false for a finished order; without the DB check
-    // a second buy would decrement Redis stock and leak a unit when the worker hits P2002.
-    const [enqueued, finalized] = await Promise.all([
-      this.orderProducer.isEnqueued(idempotencyKey),
-      this.ordersRepository.findByIdempotencyKey(idempotencyKey),
+    // Run both DB checks in parallel; confirmed/sold_out is a permanent block.
+    const [successfulOrder, failedOrdersCount] = await Promise.all([
+      this.ordersRepository.findSuccessfulOrder(dto.buyerId, dto.saleId),
+      this.ordersRepository.countFailedOrders(dto.buyerId, dto.saleId),
     ]);
-    if (enqueued || finalized) {
+    if (successfulOrder) {
+      return {
+        status: "accepted",
+        idempotencyKey: successfulOrder.idempotencyKey,
+      };
+    }
+
+    // Retry n uses suffix -r{n}; first attempt has no suffix.
+    const idempotencyKey =
+      failedOrdersCount > 0 ? `${baseKey}-r${failedOrdersCount}` : baseKey;
+
+    // BullMQ jobId deduplication: collapses double-clicks to the same in-flight job.
+    if (await this.orderProducer.isEnqueued(idempotencyKey)) {
       return { status: "accepted", idempotencyKey };
     }
 

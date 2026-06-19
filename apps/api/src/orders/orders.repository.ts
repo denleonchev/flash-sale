@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { ORDER_STATUS_VALUES, type OrderResultUpdatedPayload } from "@flash-sale/shared";
+import { ORDER_STATUSES, ORDER_STATUS_VALUES, type OrderResultUpdatedPayload } from "@flash-sale/shared";
 import { PrismaService } from "../db/prisma.service.js";
 
 /** Raw DB access for orders. No business logic — returns Prisma rows as-is. */
@@ -7,13 +7,25 @@ import { PrismaService } from "../db/prisma.service.js";
 export class OrdersRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Returns the order matching the idempotency key, or null if not found. */
-  findByIdempotencyKey(
-    idempotencyKey: string,
-  ): Promise<{ status: string } | null> {
-    return this.prisma.db.order.findUnique({
-      where: { idempotencyKey },
-      select: { status: true },
+  /**
+   * Returns the first confirmed or sold_out order for this buyer+sale, or null.
+   * Used to block re-purchase when the buyer already has a successful outcome.
+   * Failed orders are intentionally excluded — they allow retry. (FR-14)
+   */
+  findSuccessfulOrder(
+    buyerId: string,
+    saleId: string,
+  ): Promise<{ status: string; idempotencyKey: string } | null> {
+    return this.prisma.db.order.findFirst({
+      where: { buyerId, saleId, status: { not: ORDER_STATUSES.FAILED } },
+      select: { status: true, idempotencyKey: true },
+    });
+  }
+
+  /** How many failed attempts this buyer has on this sale — used to generate the next retry key. */
+  countFailedOrders(buyerId: string, saleId: string): Promise<number> {
+    return this.prisma.db.order.count({
+      where: { buyerId, saleId, status: ORDER_STATUSES.FAILED },
     });
   }
 
