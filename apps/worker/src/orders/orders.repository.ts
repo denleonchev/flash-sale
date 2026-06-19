@@ -4,6 +4,7 @@ import { OrderStatus } from "@flash-sale/db/client";
 import { PrismaService } from "../db/prisma.service.js";
 
 export interface GuardedOrderResult {
+  readonly orderId: string;
   readonly status: OrderStatus;
   readonly remaining: number;
 }
@@ -44,15 +45,17 @@ export class OrdersRepository {
           ? OrderStatus.confirmed
           : OrderStatus.sold_out;
 
-      await tx.order.create({
+      const order = await tx.order.create({
         data: {
           saleId: job.saleId,
           buyerId: job.buyerId,
           idempotencyKey: job.idempotencyKey,
           status,
         },
+        select: { id: true },
       });
       return {
+        orderId: order.id,
         status,
         remaining: await this.readRemainingStock(tx, job.saleId),
       };
@@ -63,15 +66,17 @@ export class OrdersRepository {
    * Creates a failed order row — no row lock needed because a `failed` order
    * does not claim stock (remaining = stockTotal − confirmed only). (FR-11)
    */
-  async createFailedOrder(job: OrderJobPayload): Promise<void> {
-    await this.prisma.db.order.create({
+  async createFailedOrder(job: OrderJobPayload): Promise<{ orderId: string }> {
+    const order = await this.prisma.db.order.create({
       data: {
         saleId: job.saleId,
         buyerId: job.buyerId,
         idempotencyKey: job.idempotencyKey,
         status: OrderStatus.failed,
       },
+      select: { id: true },
     });
+    return { orderId: order.id };
   }
 
   /** Returns the existing order row. Used on the P2002 idempotency path. */

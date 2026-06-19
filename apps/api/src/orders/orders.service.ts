@@ -91,4 +91,9 @@ export class OrdersService {
   ): Promise<OrderResultUpdatedPayload | null> {
     return this.ordersRepository.getLatestFinalizedOrder(buyerId, saleId);
   }
+
+  /** Mark the exact order as seen by id; suppresses future snapshots. (FR-19) */
+  acknowledgeOrderResult(orderId: string): Promise<unknown> {
+    return this.ordersRepository.acknowledgeOrderResult(orderId);
+  }
 }

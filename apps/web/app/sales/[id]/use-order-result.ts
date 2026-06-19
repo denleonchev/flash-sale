@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { SOCKET_EVENTS, type OrderStatus } from "@flash-sale/shared";
+import { ORDER_STATUSES, SOCKET_EVENTS, type OrderStatus } from "@flash-sale/shared";
 import { getSocket } from "@/lib/socket";
 import { OrderResultUpdatedSchema } from "@/lib/schemas/order-result-updated.schema";
 
@@ -19,8 +19,15 @@ export function useOrderResult(saleId: string): OrderStatus | null {
 
     const onOrderResultUpdated = (raw: unknown) => {
       const parsed = OrderResultUpdatedSchema.safeParse(raw);
-      if (parsed.success && parsed.data.saleId === saleId) {
-        setStatus(parsed.data.status);
+      if (!parsed.success || parsed.data.saleId !== saleId) return;
+      setStatus(parsed.data.status);
+      // Suppress this result from future reconnect snapshots once the buyer has seen it.
+      // Only confirmed/sold_out generate snapshots; failed is already excluded server-side.
+      if (
+        parsed.data.status === ORDER_STATUSES.CONFIRMED ||
+        parsed.data.status === ORDER_STATUSES.SOLD_OUT
+      ) {
+        socket.emit(SOCKET_EVENTS.ORDER_RESULT_UNSUBSCRIBE, { orderId: parsed.data.orderId });
       }
     };
 

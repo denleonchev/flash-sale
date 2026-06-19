@@ -47,6 +47,8 @@ export const SOCKET_EVENTS = {
   SALE_STOCK_SUBSCRIBE: "sale:stock:subscribe",
   /** Client → server command: subscribe to order result updates for this sale. (FR-18, FR-19) */
   ORDER_RESULT_SUBSCRIBE: "order:result:subscribe",
+  /** Client → server command: buyer has seen their result for this sale; suppress future snapshots. (FR-19) */
+  ORDER_RESULT_UNSUBSCRIBE: "order:result:unsubscribe",
   /** Server → clients event: the sale's remaining stock changed. (FR-17) */
   SALE_STOCK_UPDATED: "sale:stock:updated",
   /** Server → client (private room) event: the buyer's own order result. (FR-18) */
@@ -111,12 +113,15 @@ export interface OrderResult {
   saleId: string;
   /** Terminal status of the processed order. */
   status: OrderStatus;
+  /** DB order id — carried to the client so ORDER_RESULT_UNSUBSCRIBE can target the exact row. */
+  orderId: string;
 }
 
 /** Payload of the `SOCKET_EVENTS.ORDER_RESULT_UPDATED` event (server → client). (FR-18) */
 export interface OrderResultUpdatedPayload {
   saleId: string;
   status: OrderStatus;
+  orderId: string;
 }
 
 /**

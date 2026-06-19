@@ -109,6 +109,17 @@ export class SaleGateway implements OnGatewayConnection {
     }
   }
 
+  /** FR-19: buyer has seen their result — mark it acknowledged so snapshots are suppressed on future (re)subscribes. */
+  @SubscribeMessage(SOCKET_EVENTS.ORDER_RESULT_UNSUBSCRIBE)
+  async handleOrderResultUnsubscribe(
+    @MessageBody() data: { orderId?: unknown },
+    @ConnectedSocket() socket: Socket,
+  ): Promise<void> {
+    const buyerId = socket.data.buyerId as string | undefined;
+    if (!buyerId || typeof data?.orderId !== "string" || !data.orderId) return;
+    await this.ordersService.acknowledgeOrderResult(data.orderId);
+  }
+
   /** Emit new stock to everyone watching the sale. Redis adapter fans out cross-instance. (FR-17) */
   broadcastStock(payload: SaleStockUpdatedPayload): void {
     this.server
@@ -121,6 +132,7 @@ export class SaleGateway implements OnGatewayConnection {
     this.server
       .to(getUserRoomId(result.buyerId))
       .emit(SOCKET_EVENTS.ORDER_RESULT_UPDATED, {
+        orderId: result.orderId,
         saleId: result.saleId,
         status: result.status,
       } satisfies OrderResultUpdatedPayload);

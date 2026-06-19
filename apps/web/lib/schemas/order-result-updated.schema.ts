@@ -11,4 +11,5 @@ import { z } from "zod";
 export const OrderResultUpdatedSchema = z.object({
   saleId: z.string(),
   status: z.enum(ORDER_STATUS_VALUES),
+  orderId: z.string(),
 }) satisfies z.ZodType<OrderResultUpdatedPayload>;

@@ -63,14 +63,15 @@ export class OrderFinalizer {
   async finalizeOrder(job: OrderJobPayload): Promise<void> {
     // FR-13: every job must produce exactly one terminal status.
     const { success } = this.simulatePayment(job);
-
     let finalStatus: OrderStatus;
+    let finalOrderId: string;
     let remainingStock: number;
 
     if (success) {
       // Success path: guarded write decides confirmed vs sold_out under the sale-row lock (FR-15).
       try {
         const result = await this.ordersRepo.createGuardedOrder(job);
+        finalOrderId = result.orderId;
         finalStatus = result.status;
         remainingStock = result.remaining;
       } catch (e) {
@@ -80,6 +81,7 @@ export class OrderFinalizer {
           const existing = await this.ordersRepo.findOrderByIdempotencyKey(
             job.idempotencyKey,
           );
+          finalOrderId = existing.id;
           finalStatus = existing.status as OrderStatus;
           // Republish the current count (safe at concurrency=1, idempotent payload).
           remainingStock = await this.ordersRepo.getRemainingStock(job.saleId);
@@ -92,7 +94,8 @@ export class OrderFinalizer {
       // releaseStock is inside the try so a Redis crash rethrows, BullMQ retries, and the
       // retry's P2002 on createFailedOrder skips the second INCRBY. See JSDoc above.
       try {
-        await this.ordersRepo.createFailedOrder(job);
+        const created = await this.ordersRepo.createFailedOrder(job);
+        finalOrderId = created.orderId;
         await this.stockReleaseService.releaseStock(job.saleId, job.quantity);
         finalStatus = ORDER_STATUSES.FAILED;
       } catch (e) {
@@ -101,6 +104,7 @@ export class OrderFinalizer {
         const existing = await this.ordersRepo.findOrderByIdempotencyKey(
           job.idempotencyKey,
         );
+        finalOrderId = existing.id;
         finalStatus = existing.status as OrderStatus;
       }
       remainingStock = await this.ordersRepo.getRemainingStock(job.saleId);
@@ -117,6 +121,7 @@ export class OrderFinalizer {
       buyerId: job.buyerId,
       saleId: job.saleId,
       status: finalStatus,
+      orderId: finalOrderId,
     });
 
     this.logger.log(`finalized order ${job.idempotencyKey} -> ${finalStatus}`);

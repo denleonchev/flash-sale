@@ -1,6 +1,9 @@
 import { Injectable } from "@nestjs/common";
-import { ORDER_STATUSES, ORDER_STATUS_VALUES, type OrderResultUpdatedPayload } from "@flash-sale/shared";
+import { ORDER_STATUSES, type OrderResultUpdatedPayload, type OrderStatus } from "@flash-sale/shared";
 import { PrismaService } from "../db/prisma.service.js";
+
+/** Statuses that generate a reconnect snapshot (FR-19). failed is excluded — it allows retry. */
+const SNAPSHOT_STATUSES: OrderStatus[] = [ORDER_STATUSES.CONFIRMED, ORDER_STATUSES.SOLD_OUT];
 
 /** Raw DB access for orders. No business logic — returns Prisma rows as-is. */
 @Injectable()
@@ -30,23 +33,37 @@ export class OrdersRepository {
   }
 
   /**
-   * Last finalized order for a buyer on one sale, ordered by `createdAt desc`.
-   * Used to push a snapshot on (re)subscribe so a reconnected client recovers its
-   * own result for the sale it is viewing (FR-19). Returns null if none exists yet.
+   * Last unacknowledged confirmed/sold_out order for a buyer on one sale.
+   * Used to push a snapshot on (re)subscribe (FR-19). Returns null if none exists
+   * or if the buyer has already acknowledged the result (acknowledgedAt is set).
    */
   async getLatestFinalizedOrder(
     buyerId: string,
     saleId: string,
   ): Promise<OrderResultUpdatedPayload | null> {
     const row = await this.prisma.db.order.findFirst({
-      where: { buyerId, saleId, status: { in: ORDER_STATUS_VALUES } },
-      select: { saleId: true, status: true },
+      where: {
+        buyerId,
+        saleId,
+        status: { in: SNAPSHOT_STATUSES },
+        acknowledgedAt: null,
+      },
+      select: { id: true, saleId: true, status: true },
       orderBy: { createdAt: "desc" },
     });
     if (!row) return null;
     return {
+      orderId: row.id,
       saleId: row.saleId,
       status: row.status as OrderResultUpdatedPayload["status"],
     };
+  }
+
+  /** Mark the exact order row as acknowledged by PK (FR-19). */
+  acknowledgeOrderResult(orderId: string): Promise<unknown> {
+    return this.prisma.db.order.update({
+      where: { id: orderId, acknowledgedAt: null },
+      data: { acknowledgedAt: new Date() },
+    });
   }
 }
