@@ -1,9 +1,7 @@
-import type { HarnessConfig } from "./config.js";
+import type { RunConfig } from "./config.js";
+import type { BuyOutcome } from "./buy-outcome.js";
 
-/** How the api answered one buy — never an exception, always an outcome. */
-type BuyOutcome = "accepted" | "rejected" | "error";
-
-export interface FireReport {
+export interface SwarmReport {
   readonly accepted: number;
   readonly rejected: number;
   readonly errors: number;
@@ -11,9 +9,9 @@ export interface FireReport {
 
 /** Fires N buys at one sale as simultaneously as possible — this is the race. */
 export class BuyerSwarm {
-  constructor(private readonly config: HarnessConfig) {}
+  constructor(private readonly config: RunConfig) {}
 
-  async fireConcurrentBuys(saleId: string): Promise<FireReport> {
+  async fireConcurrentBuys(saleId: string): Promise<SwarmReport> {
     // Build all promises first, then await together → maximal simultaneity.
     const outcomes = await Promise.all(
       Array.from({ length: this.config.buyers }, (_, i) =>

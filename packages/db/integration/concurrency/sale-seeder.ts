@@ -1,5 +1,5 @@
 import { PrismaClient } from "../../generated/client/index.js";
-import type { HarnessConfig } from "./config.js";
+import type { RunConfig } from "./config.js";
 
 const TITLE_MARKER = "CONCURRENCY TEST —";
 const HOUR_MS = 60 * 60 * 1000;
@@ -8,7 +8,7 @@ const HOUR_MS = 60 * 60 * 1000;
 export class SaleSeeder {
   constructor(
     private readonly prisma: PrismaClient,
-    private readonly config: HarnessConfig,
+    private readonly config: RunConfig,
   ) {}
 
   async seedFreshSale(): Promise<string> {

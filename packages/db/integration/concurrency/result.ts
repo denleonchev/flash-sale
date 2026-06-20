@@ -1,12 +1,12 @@
-import type { HarnessConfig } from "./config.js";
-import type { FireReport } from "./buyer-swarm.js";
+import type { RunConfig } from "./config.js";
+import type { SwarmReport } from "./buyer-swarm.js";
 import type { OrderSnapshot, DrainTiming } from "./order-inspector.js";
 
 /** The verdict and its human-readable report. */
-export class HarnessResult {
+export class ConcurrencyResult {
   constructor(
-    private readonly config: HarnessConfig,
-    private readonly fire: FireReport,
+    private readonly config: RunConfig,
+    private readonly swarm: SwarmReport,
     private readonly snapshot: OrderSnapshot,
     private readonly timing: DrainTiming,
   ) {}
@@ -23,10 +23,10 @@ export class HarnessResult {
     console.log("\n──────── result ────────");
     console.log(`stock (K)        : ${this.config.stock}`);
     console.log(`buyers (N)       : ${this.config.buyers}`);
-    console.log(`http accepted    : ${this.fire.accepted}`);
-    console.log(`http rejected    : ${this.fire.rejected}`);
-    if (this.fire.errors > 0) {
-      console.log(`http errors      : ${this.fire.errors}  (api running?)`);
+    console.log(`http accepted    : ${this.swarm.accepted}`);
+    console.log(`http rejected    : ${this.swarm.rejected}`);
+    if (this.swarm.errors > 0) {
+      console.log(`http errors      : ${this.swarm.errors}  (api running?)`);
     }
     console.log(`confirmed (DB)   : ${this.snapshot.confirmed}`);
     console.log(`duplicate buyers : ${this.snapshot.duplicateBuyers}`);
