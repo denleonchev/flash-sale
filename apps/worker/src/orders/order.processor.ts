@@ -1,4 +1,4 @@
-import { Processor, WorkerHost } from "@nestjs/bullmq";
+import { OnWorkerEvent, Processor, WorkerHost } from "@nestjs/bullmq";
 import { Logger } from "@nestjs/common";
 import { ORDER_QUEUE, type OrderJobPayload } from "@flash-sale/shared";
 import { Job } from "bullmq";
@@ -10,11 +10,14 @@ import { OrderFinalizer } from "./order.finalizer.js";
  * two buyers hitting the last unit are handled one after the other, never in
  * parallel. Do not raise this without revisiting the oversell-prevention design.
  *
- * The handler must be idempotent: after a crash BullMQ may re-deliver the job,
- * and a retry must not double its effect (NFR-2). Idempotency is enforced in
- * OrderFinalizer via guarded UPDATE (WHERE status = in_progress) + count===0 read-back.
+ * Crash survival (NFR-5): BullMQ holds a lock on the active job in Redis. If the
+ * worker dies, the lock expires after lockDuration (default 30 s); BullMQ marks the
+ * job stalled and re-queues it up to maxStalledCount times. maxStalledCount: 3
+ * matches attempts: 3 in the producer so both retry paths get the same number of
+ * chances. Re-delivery is safe — OrderFinalizer enforces idempotency via guarded
+ * UPDATE (WHERE status = in_progress).
  */
-@Processor(ORDER_QUEUE, { concurrency: 1 })
+@Processor(ORDER_QUEUE, { concurrency: 1, maxStalledCount: 3 })
 export class OrderProcessor extends WorkerHost {
   private readonly logger = new Logger(OrderProcessor.name);
 
@@ -27,5 +30,17 @@ export class OrderProcessor extends WorkerHost {
       `picked up order job ${job.id} (key ${job.data.idempotencyKey})`,
     );
     await this.finalizer.finalizeOrder(job.data);
+  }
+
+  @OnWorkerEvent("failed")
+  onFailed(job: Job<OrderJobPayload>, err: Error): void {
+    this.logger.error(
+      `job ${job.id} failed (attempt ${job.attemptsMade}/${job.opts.attempts ?? 1}): ${err.message}`,
+    );
+  }
+
+  @OnWorkerEvent("stalled")
+  onStalled(jobId: string): void {
+    this.logger.warn(`job ${jobId} stalled — BullMQ will re-queue`);
   }
 }

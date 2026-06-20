@@ -6,6 +6,10 @@ import { Queue } from "bullmq";
 /**
  * Idempotency (FR-14, NFR-2): jobId = idempotencyKey — BullMQ ignores a
  * second add with an id that already exists in the queue.
+ *
+ * attempts/backoff (NFR-5): retries fire only when process() throws (infra
+ * failures: DB/Redis down). A clean "payment failed" outcome does not throw —
+ * the job completes successfully, no retry happens.
  */
 @Injectable()
 export class OrderProducer {
@@ -30,6 +34,8 @@ export class OrderProducer {
       jobId: idempotencyKey,
       removeOnComplete: true,
       removeOnFail: 100,
+      attempts: 3,
+      backoff: { type: "exponential", delay: 1_000 }, // NFR-5
     });
     this.logger.log(`enqueued order job ${job.id} for sale ${saleId}`);
   }
