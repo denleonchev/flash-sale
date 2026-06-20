@@ -16,15 +16,11 @@ const SNAPSHOT_STATUSES: OrderStatus[] = [
   ORDER_STATUSES.SOLD_OUT,
 ];
 
-/** Raw DB access for orders. No business logic — returns Prisma rows as-is. */
 @Injectable()
 export class OrdersRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  /**
-   * Returns the first in_progress, confirmed, or sold_out order for this buyer+sale, or null.
-   * Used to block re-purchase. Failed orders are intentionally excluded — they allow retry. (FR-14)
-   */
+  /** Failed orders excluded — they allow retry. (FR-14) */
   findBlockingOrder(
     buyerId: string,
     saleId: string,
@@ -35,7 +31,6 @@ export class OrdersRepository {
     });
   }
 
-  /** How many failed attempts this buyer has on this sale — used to generate the next retry key. */
   countFailedOrders(buyerId: string, saleId: string): Promise<number> {
     return this.prisma.db.order.count({
       where: { buyerId, saleId, status: ORDER_STATUSES.FAILED },
@@ -43,13 +38,12 @@ export class OrdersRepository {
   }
 
   /**
-   * Creates an order row with status `in_progress` before the job is enqueued.
-   * The UNIQUE(idempotency_key) constraint is the atomic dedup point for double-clicks:
-   * two concurrent requests both past `findBlockingOrder` race here and one gets P2002.
-   * The caller catches P2002 and releases the extra reservation. (FR-9, FR-14, §4 step 4)
+   * UNIQUE(idempotency_key) is the double-click dedup point: two concurrent requests
+   * both past `findBlockingOrder` race here; the loser gets P2002, caller releases the
+   * extra reservation. (FR-9, FR-14, §4 step 4)
    *
-   * // NFR-3: hot-path INSERT is intentional — it's a light indexed write, not slow
-   * // payment work; the durable row enables FR-19 reconnect recovery of "processing" state.
+   * NFR-3: hot-path INSERT is intentional — light indexed write, not slow payment work;
+   * durable row enables FR-19 reconnect recovery of "processing" state.
    */
   async createInProgressOrder(
     buyerId: string,
@@ -63,20 +57,12 @@ export class OrdersRepository {
     return { orderId: order.id };
   }
 
-  /**
-   * Deletes the order row by PK. Used as rollback when enqueue fails after a
-   * successful INSERT — an orphan in_progress row without a job would permanently
-   * block re-purchase and never resolve. (§4 step 5 rollback)
-   */
+  /** Rollback when enqueue fails: orphan in_progress without a job blocks re-purchase forever. (§4 step 5) */
   deleteOrder(orderId: string): Promise<unknown> {
     return this.prisma.db.order.delete({ where: { id: orderId } });
   }
 
-  /**
-   * Last unacknowledged non-failed order for a buyer on one sale.
-   * Includes in_progress so a reconnecting buyer recovers "your order is processing"
-   * (FR-19). Returns null if all results have been acknowledged (acknowledgedAt is set).
-   */
+  /** Includes in_progress so a reconnecting buyer recovers "your order is processing". (FR-19) */
   async getLatestFinalizedOrder(
     buyerId: string,
     saleId: string,
@@ -99,7 +85,6 @@ export class OrdersRepository {
     };
   }
 
-  /** Mark the exact order row as acknowledged by PK (FR-19). */
   acknowledgeOrderResult(orderId: string): Promise<unknown> {
     return this.prisma.db.order.update({
       where: { id: orderId, acknowledgedAt: null },

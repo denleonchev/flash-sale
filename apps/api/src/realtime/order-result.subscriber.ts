@@ -9,13 +9,7 @@ import type { Redis } from "ioredis";
 import { createRedisConnection } from "../redis/redis.connection.js";
 import { SaleGateway } from "./sale.gateway.js";
 
-/**
- * Subscribes to `ORDER_RESULT_CHANNEL` and forwards each result to the buyer's
- * private socket room via `SaleGateway.sendOrderResult`. Symmetric counterpart of
- * the worker's `OrderResultPublisher`. (FR-18)
- *
- * Owns a dedicated subscribe-mode connection — same reasoning as `StockSubscriber`.
- */
+/** Dedicated subscribe-mode connection — same reasoning as StockSubscriber. (FR-18) */
 @Injectable()
 export class OrderResultSubscriber implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(OrderResultSubscriber.name);

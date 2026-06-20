@@ -13,17 +13,11 @@ import { createRedisConnection } from "../redis/redis.connection.js";
 import { SaleGateway } from "./sale.gateway.js";
 
 /**
- * Subscribes to the Redis STOCK_CHANNEL and forwards each post-confirm stock count
- * to the sale room over Socket.IO (§4 step 10, §6). Symmetric counterpart of the
- * worker's StockPublisher.
+ * Dedicated subscribe-mode connection required — a pub/sub connection cannot issue
+ * normal Redis commands, so it cannot share the BullMQ or Socket.IO adapter connection.
  *
- * A subscribe-mode connection cannot issue normal commands, so we own a dedicated
- * connection here (separate from the BullMQ producer and the Socket.IO adapter).
- *
- * Multi-instance note: every api instance subscribes and broadcasts, so with N
- * instances a client receives N copies. The payload is the absolute remaining count,
- * so duplicates are idempotent and harmless; deduplicating to one instance is a
- * future optimisation, not needed at demo scale.
+ * Multi-instance: every api instance broadcasts, so N instances → N copies per client.
+ * Harmless because the payload is an absolute count, not a delta.
  */
 @Injectable()
 export class StockSubscriber implements OnModuleInit, OnModuleDestroy {

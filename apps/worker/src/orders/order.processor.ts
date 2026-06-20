@@ -5,8 +5,6 @@ import { Job } from "bullmq";
 import { OrderFinalizer } from "./order.finalizer.js";
 
 /**
- * BullMQ consumer for the `orders` queue (§3.3, FR-13).
- *
  * Concurrency = 1 (FR-10, .claude/rules/concurrency.md): the worker processes at
  * most one order job at a time, so stock confirmation is strictly serialised —
  * two buyers hitting the last unit are handled one after the other, never in

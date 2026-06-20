@@ -6,9 +6,6 @@ import { StockPublisher } from "../realtime/stock.publisher.js";
 import { OrderResultPublisher } from "../realtime/order-result.publisher.js";
 
 /**
- * Finalizes one order job: runs payment simulation and transitions the in_progress
- * order row to its terminal status via OrdersRepository.
- *
  * Concurrency correctness (§4, .claude/rules/concurrency.md):
  * - Both paths use guarded UPDATE (`WHERE status = in_progress`) so a re-delivered
  *   job finds count=0 (row already terminal) and acts at most once.
@@ -44,13 +41,11 @@ export class OrderFinalizer {
   async finalizeOrder(job: OrderJobPayload): Promise<void> {
     const { status, orderId, remainingStock } = await this.resolveOrder(job);
 
-    // FR-17: tell everyone watching the sale the new stock count.
     await this.stockPublisher.publishStock({
       saleId: job.saleId,
       remainingStock,
     });
 
-    // FR-18: tell the buyer their personal result.
     await this.orderResultPublisher.publishOrderResult({
       buyerId: job.buyerId,
       saleId: job.saleId,
@@ -61,10 +56,6 @@ export class OrderFinalizer {
     this.logger.log(`finalized order ${job.idempotencyKey} -> ${status}`);
   }
 
-  /**
-   * Runs payment and transitions the in_progress row to its terminal status. (FR-13)
-   * Returns the resolved status, orderId, and post-write remainingStock for publishing.
-   */
   private async resolveOrder(job: OrderJobPayload): Promise<GuardedOrderResult> {
     if (this.simulatePayment(job).success) {
       // Success: guarded UPDATE decides confirmed vs sold_out under sale-row lock.

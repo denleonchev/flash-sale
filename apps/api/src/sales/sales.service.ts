@@ -7,14 +7,12 @@ import { toSaleDto } from "./sales.mapper.js";
 export class SalesService {
   constructor(private readonly repo: SalesRepository) {}
 
-  /** Returns the SaleDto for the given id, or null if not found. remainingStock = stockTotal − confirmed (§5). */
   async getSaleById(id: string): Promise<SaleDto | null> {
     const sale = await this.repo.findById(id);
     if (!sale) return null;
     return toSaleDto(sale, sale.stockTotal - sale._count.orders, new Date());
   }
 
-  /** Returns all sales sorted live → upcoming → ended (FR-2, state is derived not stored). */
   async getAllSales(): Promise<SaleDto[]> {
     const sales = await this.repo.findAll();
     const now = new Date();

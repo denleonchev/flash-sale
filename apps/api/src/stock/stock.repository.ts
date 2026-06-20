@@ -1,7 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type { Redis } from "ioredis";
 
-/** Redis key for the fast-path stock counter of a sale. */
 export const stockKey = (saleId: string) => `stock:${saleId}`;
 
 /**

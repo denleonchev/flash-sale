@@ -12,12 +12,9 @@ export class StockService {
   ) {}
 
   /**
-   * Reserve `qty` units for `saleId`. Returns true on success, false when sold out.
-   *
-   * Lazy initialisation: if the Redis key is absent the counter is seeded from
-   * Postgres (stockTotal − confirmedOrders) using SET NX, then the Lua script
-   * runs again. SET NX is atomic — only the first concurrent caller wins; the
-   * rest see the key already set and proceed normally. (FR-7, NFR-3)
+   * Lazy init: if the Redis key is absent the counter is seeded from Postgres via
+   * SET NX (atomic — only the first concurrent caller wins), then the Lua script
+   * runs again. (FR-8, NFR-3)
    */
   async reserveStock(saleId: string, qty: number): Promise<boolean> {
     const key = stockKey(saleId);
@@ -31,7 +28,6 @@ export class StockService {
     return result === 1;
   }
 
-  /** Release `qty` units back to the counter (used on enqueue failure). */
   async releaseStock(saleId: string, qty: number): Promise<void> {
     await this.stockRepo.incrementStock(stockKey(saleId), qty);
   }

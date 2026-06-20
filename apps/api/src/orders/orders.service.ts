@@ -33,10 +33,6 @@ export class OrdersService {
   ) {}
 
   /**
-   * Hot-path purchase flow (§4 steps 2–5):
-   *   validate live → findBlockingOrder → reserve Redis → INSERT in_progress →
-   *   enqueue → publish processing → return "accepted".
-   *
    * Retry semantics (FR-14, FR-16): in_progress/confirmed/sold_out are permanent
    * blocks. A failed order releases its reserved unit and ALLOWS a retry. Each
    * retry gets a unique key (`baseKey-r{n}`) so the UNIQUE constraint is not
@@ -116,8 +112,6 @@ export class OrdersService {
       throw err;
     }
 
-    // Notify buyer immediately that processing has started. The OrderResultSubscriber
-    // picks this up from Redis pub/sub and routes it to the buyer's socket room.
     await this.orderResultPublisher.publishOrderResult({
       buyerId: dto.buyerId,
       saleId: dto.saleId,
@@ -128,7 +122,6 @@ export class OrdersService {
     return { status: "accepted", idempotencyKey };
   }
 
-  /** Delegates to repository; used by the gateway for FR-19 reconnect snapshot. */
   getLatestFinalizedOrder(
     buyerId: string,
     saleId: string,
@@ -136,7 +129,6 @@ export class OrdersService {
     return this.ordersRepository.getLatestFinalizedOrder(buyerId, saleId);
   }
 
-  /** Mark the exact order as seen by id; suppresses future snapshots. (FR-19) */
   acknowledgeOrderResult(orderId: string): Promise<unknown> {
     return this.ordersRepository.acknowledgeOrderResult(orderId);
   }

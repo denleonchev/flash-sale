@@ -9,10 +9,6 @@ export interface GuardedOrderResult {
   readonly remainingStock: number;
 }
 
-/**
- * All prisma.db.* calls for the orders feature live here (worker CLAUDE.md layered
- * architecture). The finalizer and processor never import PrismaService directly.
- */
 @Injectable()
 export class OrdersRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -100,7 +96,7 @@ export class OrdersRepository {
     };
   }
 
-  /** Returns the existing order row. Used on the count===0 idempotency path. */
+  /** Used on the count===0 idempotency path. */
   async findOrderByIdempotencyKey(key: string) {
     return this.prisma.db.order.findUniqueOrThrow({
       where: { idempotencyKey: key },
@@ -115,7 +111,7 @@ export class OrdersRepository {
     return this.readRemainingStock(this.prisma.db, saleId);
   }
 
-  /** remaining = stockTotal − confirmed orders (§5). Returns 0 if the sale vanished. */
+  /** Returns 0 if the sale vanished. */
   private async readRemainingStock(
     client: Pick<PrismaService["db"], "sale">,
     saleId: string,

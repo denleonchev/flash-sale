@@ -4,11 +4,6 @@ import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module.js";
 import { RedisIoAdapter } from "./realtime/redis-io.adapter.js";
 
-/**
- * api entrypoint. Boots the Nest HTTP app: health check, the order queue producer
- * (S-E0.4a) and the Socket.IO gateway with a Redis adapter for cross-instance
- * broadcasts (S-E0.4b). The DB is still wired later (S-E0.2).
- */
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule);
   app.enableShutdownHooks();
@@ -22,7 +17,6 @@ async function bootstrap(): Promise<void> {
       transform: true,
     }),
   );
-  // Redis-backed Socket.IO adapter → broadcasts fan out across api instances.
   const redisIoAdapter = new RedisIoAdapter(app);
   await redisIoAdapter.connectToRedis();
   app.useWebSocketAdapter(redisIoAdapter);

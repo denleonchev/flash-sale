@@ -20,14 +20,7 @@ import { SalesService } from "../sales/sales.service.js";
 import { OrdersService } from "../orders/orders.service.js";
 import { getBuyerId } from "./socket-ticket.js";
 
-/**
- * Realtime gateway for sale updates (§6). Clients subscribe to a sale and receive
- * stock changes for it. Authenticated buyers additionally receive their own order
- * result in a private room keyed by `buyerId`. The Redis adapter (RedisIoAdapter)
- * makes broadcasts cross-instance.
- *
- * `cors.origin: true` only matters in dev (no nginx). (NFR-10)
- */
+/** `cors.origin: true` only matters in dev (no nginx). (NFR-10) */
 @WebSocketGateway({ cors: { origin: true } })
 export class SaleGateway implements OnGatewayConnection {
   private readonly logger = new Logger(SaleGateway.name);
@@ -41,17 +34,11 @@ export class SaleGateway implements OnGatewayConnection {
   private readonly server!: Server;
 
   /**
-   * On connect: verify the HMAC ticket from `socket.handshake.auth.ticket`.
-   * Authenticated → join `user:<buyerId>` room and stash `buyerId` on the socket.
-   * Unauthenticated or missing ticket → remain anon; still receives public stock.
-   * Never disconnects an anon socket. (FR-18)
+   * Snapshot NOT pushed here — saleId is unknown at connect time; pushed on
+   * (re)subscribe instead. (FR-19)
    *
-   * The per-buyer result snapshot is NOT pushed here — at connect time the buyer has
-   * not yet subscribed to a sale, so `saleId` is unknown. It is pushed per-sale on
-   * (re)subscribe instead (see handleSaleSubscribe, FR-19).
-   *
-   * Concurrency note: the buyer's socket joins the private room BEFORE any Buy click,
-   * so there is no race between "result published" and "room joined". (S-3.2 plan §Correctness)
+   * Socket joins the private room BEFORE any Buy click → no race between
+   * "result published" and "room joined". (FR-18)
    */
   async handleConnection(socket: Socket): Promise<void> {
     const ticket = socket.handshake.auth?.ticket as string | undefined;
@@ -68,10 +55,7 @@ export class SaleGateway implements OnGatewayConnection {
     this.logger.log(`socket ${socket.id} joined user room for ${buyerId}`);
   }
 
-  /**
-   * Client asks for live stock updates → join sale room + push current stock snapshot
-   * so a freshly connected or reconnected client never shows stale data (FR-17, FR-19).
-   */
+  // Snapshot on (re)subscribe so client never shows stale data. (FR-17, FR-19)
   @SubscribeMessage(SOCKET_EVENTS.SALE_STOCK_SUBSCRIBE)
   async handleSaleStockSubscribe(
     @MessageBody() data: { saleId?: unknown },
@@ -95,7 +79,6 @@ export class SaleGateway implements OnGatewayConnection {
     return { subscribed: room };
   }
 
-  /** FR-18/FR-19: buyer subscribes to their order result for one sale. Delivers the latest finalized result immediately if one exists. */
   @SubscribeMessage(SOCKET_EVENTS.ORDER_RESULT_SUBSCRIBE)
   async handleOrderResultSubscribe(
     @MessageBody() data: { saleId?: unknown },
@@ -109,7 +92,7 @@ export class SaleGateway implements OnGatewayConnection {
     }
   }
 
-  /** FR-19: buyer has seen their result — mark it acknowledged so snapshots are suppressed on future (re)subscribes. */
+  // Suppress future reconnect snapshots once buyer has seen their result. (FR-19)
   @SubscribeMessage(SOCKET_EVENTS.ORDER_RESULT_UNSUBSCRIBE)
   async handleOrderResultUnsubscribe(
     @MessageBody() data: { orderId?: unknown },
@@ -120,14 +103,12 @@ export class SaleGateway implements OnGatewayConnection {
     await this.ordersService.acknowledgeOrderResult(data.orderId);
   }
 
-  /** Emit new stock to everyone watching the sale. Redis adapter fans out cross-instance. (FR-17) */
   broadcastStock(payload: SaleStockUpdatedPayload): void {
     this.server
       .to(getSaleRoomId(payload.saleId))
       .emit(SOCKET_EVENTS.SALE_STOCK_UPDATED, payload);
   }
 
-  /** Emit order result to the buyer's private room. Redis adapter fans out cross-instance. (FR-18) */
   sendOrderResult(result: OrderResult): void {
     this.server
       .to(getUserRoomId(result.buyerId))

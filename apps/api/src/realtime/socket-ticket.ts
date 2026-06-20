@@ -1,12 +1,9 @@
 import { timingSafeEqual, createHmac } from "node:crypto";
 
 /**
- * Verifies a short-lived HMAC-SHA256 socket ticket issued by the web BFF. Returns
- * the `buyerId` on success, `null` on invalid signature or expiry. `timingSafeEqual`
- * prevents timing-based forgery (NFR-9). Uses only `node:crypto` — no new deps.
- *
+ * `timingSafeEqual` prevents timing-based forgery. (NFR-9)
  * Ticket format: `${buyerId}.${expiresAt}.${sigBase64url}` (web: `lib/socket-ticket.ts`)
- * Shared secret: `SOCKET_TICKET_SECRET` env var (must be set in both web and api). (FR-18, NFR-8)
+ * Shared secret: `SOCKET_TICKET_SECRET` env var — must be set in both web and api. (NFR-8)
  */
 export function getBuyerId(ticket: string): string | null {
   const secret = process.env.SOCKET_TICKET_SECRET;
