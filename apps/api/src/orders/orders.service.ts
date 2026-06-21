@@ -50,8 +50,13 @@ export class OrdersService {
     dto: CreateOrderDto,
   ): Promise<{ status: string; idempotencyKey: string }> {
     const sale = await this.salesService.getSaleById(dto.saleId);
-    if (!sale || sale.state !== SALE_STATES.LIVE) {
-      throw new ConflictException("sale not live");
+    if (!sale) {
+      throw new ConflictException("sale not found");
+    }
+    if (sale.state !== SALE_STATES.LIVE) {
+      const reason =
+        sale.state === SALE_STATES.UPCOMING ? "sale not started yet" : "sale has ended";
+      throw new ConflictException(reason);
     }
 
     const baseKey = `${dto.buyerId}-${dto.saleId}`;
