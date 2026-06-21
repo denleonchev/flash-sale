@@ -22,6 +22,8 @@ function isPrismaUniqueError(e: unknown): boolean {
   );
 }
 
+type BuyResult = { status: string; idempotencyKey: string };
+
 @Injectable()
 export class OrdersService {
   constructor(
@@ -32,24 +34,31 @@ export class OrdersService {
     private readonly ordersRepository: OrdersRepository,
   ) {}
 
-  /**
-   * Retry semantics (FR-14, FR-16): in_progress/confirmed/sold_out are permanent
-   * blocks. A failed order releases its reserved unit and ALLOWS a retry. Each
-   * retry gets a unique key (`baseKey-r{n}`) so the UNIQUE constraint is not
-   * violated across attempts.
-   *
-   * Concurrency (§4 plan, .claude/rules/concurrency.md):
-   * - Redis DECR is the sold-out gate — atomic, before any DB write.
-   * - UNIQUE(idempotency_key) on INSERT is the double-click dedup: two concurrent
-   *   requests both past findBlockingOrder race here; the loser gets P2002,
-   *   releases its extra reservation, and returns accepted.
-   * - Enqueue failure rolls back: deleteOrder + releaseStock so no orphan
-   *   in_progress row is left without a job to resolve it.
-   */
-  async buy(
-    dto: CreateOrderDto,
-  ): Promise<{ status: string; idempotencyKey: string }> {
-    const sale = await this.salesService.getSaleById(dto.saleId);
+  async buy(dto: CreateOrderDto): Promise<BuyResult> {
+    await this.assertSaleLive(dto.saleId);
+
+    // Non-failed order (in_progress/confirmed/sold_out) is a permanent block.
+    const blocking = await this.ordersRepository.findBlockingOrder(dto.buyerId, dto.saleId);
+    if (blocking) return { status: "accepted", idempotencyKey: blocking.idempotencyKey };
+
+    const idempotencyKey = await this.buildIdempotencyKey(dto.buyerId, dto.saleId);
+    return this.executeOrder(dto, idempotencyKey);
+  }
+
+  getLatestFinalizedOrder(
+    buyerId: string,
+    saleId: string,
+  ): Promise<OrderResultUpdatedPayload | null> {
+    return this.ordersRepository.getLatestFinalizedOrder(buyerId, saleId);
+  }
+
+  acknowledgeOrderResult(orderId: string): Promise<unknown> {
+    return this.ordersRepository.acknowledgeOrderResult(orderId);
+  }
+
+  // FR-3: reject unless the sale is currently live.
+  private async assertSaleLive(saleId: string): Promise<void> {
+    const sale = await this.salesService.getSaleById(saleId);
     if (!sale) {
       throw new ConflictException("sale not found");
     }
@@ -58,30 +67,26 @@ export class OrdersService {
         sale.state === SALE_STATES.UPCOMING ? "sale not started yet" : "sale has ended";
       throw new ConflictException(reason);
     }
+  }
 
-    const baseKey = `${dto.buyerId}-${dto.saleId}`;
+  // FR-14, FR-16: retry gets a unique suffix so the UNIQUE constraint is not violated across attempts.
+  private async buildIdempotencyKey(buyerId: string, saleId: string): Promise<string> {
+    const base = `${buyerId}-${saleId}`;
+    const failedCount = await this.ordersRepository.countFailedOrders(buyerId, saleId);
+    return failedCount > 0 ? `${base}-r${failedCount}` : base;
+  }
 
-    // Non-failed order (in_progress/confirmed/sold_out) is a permanent block.
-    const blockingOrder = await this.ordersRepository.findBlockingOrder(
-      dto.buyerId,
-      dto.saleId,
-    );
-    if (blockingOrder) {
-      return { status: "accepted", idempotencyKey: blockingOrder.idempotencyKey };
-    }
-
-    const failedOrdersCount = await this.ordersRepository.countFailedOrders(
-      dto.buyerId,
-      dto.saleId,
-    );
-    const idempotencyKey =
-      failedOrdersCount > 0 ? `${baseKey}-r${failedOrdersCount}` : baseKey;
-
-    // Sold-out gate: atomic Redis DECR, no DB row created if it fails. (FR-8, FR-15)
-    const reserved = await this.stockService.reserveStock(
-      dto.saleId,
-      dto.quantity,
-    );
+  /**
+   * Concurrency (§4 plan, .claude/rules/concurrency.md):
+   * - Redis DECR is the sold-out gate — atomic, before any DB write. (FR-8, FR-15)
+   * - UNIQUE(idempotency_key) on INSERT is the double-click dedup: two concurrent
+   *   requests both past findBlockingOrder race here; the loser gets P2002,
+   *   releases its extra reservation, and returns accepted.
+   * - Enqueue failure rolls back: deleteOrder + releaseStock so no orphan
+   *   in_progress row is left without a job to resolve it.
+   */
+  private async executeOrder(dto: CreateOrderDto, idempotencyKey: string): Promise<BuyResult> {
+    const reserved = await this.stockService.reserveStock(dto.saleId, dto.quantity);
     if (!reserved) {
       throw new ConflictException("sold out");
     }
@@ -97,19 +102,12 @@ export class OrdersService {
     } catch (e) {
       // P2002: double-click lost the INSERT race → release extra reservation.
       await this.stockService.releaseStock(dto.saleId, dto.quantity);
-      if (isPrismaUniqueError(e)) {
-        return { status: "accepted", idempotencyKey };
-      }
+      if (isPrismaUniqueError(e)) return { status: "accepted", idempotencyKey };
       throw e;
     }
 
     try {
-      await this.orderProducer.enqueueOrderJob(
-        dto.saleId,
-        dto.buyerId,
-        idempotencyKey,
-        dto.quantity,
-      );
+      await this.orderProducer.enqueueOrderJob(dto.saleId, dto.buyerId, idempotencyKey, dto.quantity);
     } catch (err) {
       // Enqueue failed: orphan in_progress row would block all future retries.
       await this.ordersRepository.deleteOrder(orderId);
@@ -125,16 +123,5 @@ export class OrdersService {
     });
 
     return { status: "accepted", idempotencyKey };
-  }
-
-  getLatestFinalizedOrder(
-    buyerId: string,
-    saleId: string,
-  ): Promise<OrderResultUpdatedPayload | null> {
-    return this.ordersRepository.getLatestFinalizedOrder(buyerId, saleId);
-  }
-
-  acknowledgeOrderResult(orderId: string): Promise<unknown> {
-    return this.ordersRepository.acknowledgeOrderResult(orderId);
   }
 }
