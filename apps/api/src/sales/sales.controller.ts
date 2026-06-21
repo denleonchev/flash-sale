@@ -13,6 +13,12 @@ export class SalesController {
     return this.service.createSale(dto);
   }
 
+  // TODO NFR-7: restrict to admin role
+  @Post(":id/end")
+  endSale(@Param("id", ParseUUIDPipe) id: string): Promise<Sale> {
+    return this.service.endSale(id);
+  }
+
   /** Catalog: all sales sorted live → upcoming → ended (supports FR-5 / UR-1). */
   @Get()
   getAllSales(): Promise<Sale[]> {

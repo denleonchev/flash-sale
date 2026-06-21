@@ -26,4 +26,8 @@ export class SalesRepository {
   create(data: { title: string; stockTotal: number; startsAt: Date; endsAt: Date }): Promise<Sale> {
     return this.prisma.db.sale.create({ data });
   }
+
+  endNow(id: string): Promise<Sale> {
+    return this.prisma.db.sale.update({ where: { id }, data: { endsAt: new Date() } });
+  }
 }

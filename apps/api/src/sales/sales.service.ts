@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { SALE_STATES, type Sale, type CreateSale } from "@flash-sale/shared";
 import { SalesRepository } from "./sales.repository.js";
 import { toSale } from "./sales.mapper.js";
@@ -21,6 +21,13 @@ export class SalesService {
     }
     const sale = await this.repo.create({ title: dto.title, stockTotal: dto.stockTotal, startsAt, endsAt });
     return toSale(sale, sale.stockTotal, new Date());
+  }
+
+  async endSale(id: string): Promise<Sale> {
+    const existing = await this.repo.findById(id);
+    if (!existing) throw new NotFoundException(`Sale ${id} not found`);
+    const sale = await this.repo.endNow(id);
+    return toSale(sale, existing.stockTotal - existing._count.orders, new Date());
   }
 
   async getAllSales(): Promise<Sale[]> {

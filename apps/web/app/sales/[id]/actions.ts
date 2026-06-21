@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { apiFetch } from "@/lib/api";
 import { auth0 } from "@/lib/auth0";
 import { encodeBuyerId } from "@/lib/buyer-id";
@@ -43,4 +44,11 @@ export async function buyAction(saleId: string): Promise<BuyState> {
 
   const body = (await res.json()) as { status: string; idempotencyKey: string };
   return { idempotencyKey: body.idempotencyKey };
+}
+
+export async function endSaleAction(saleId: string, _formData: FormData): Promise<void> {
+  // TODO NFR-7: check admin role from Auth0 session before proceeding.
+  const res = await apiFetch(`/sales/${saleId}/end`, { method: "POST" });
+  if (!res.ok) throw new Error(`Failed to end sale (${res.status})`);
+  revalidatePath(`/sales/${saleId}`);
 }

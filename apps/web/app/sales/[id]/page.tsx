@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { auth0 } from "@/lib/auth0";
 import { Countdown } from "./countdown";
+import { EndNowButton } from "./end-now-button";
 import { getSale } from "./get-sale";
 import { LiveStock } from "./live-stock";
 
@@ -39,13 +40,16 @@ export default async function SalePage({
       <h1>{sale.title}</h1>
 
       {sale.state === "live" && (
-        <LiveStock
-          saleId={sale.id}
-          initialStock={sale.remainingStock}
-          signedIn={!!session}
-          endsAt={sale.endsAt}
-          serverNow={sale.serverNow}
-        />
+        <>
+          <LiveStock
+            saleId={sale.id}
+            initialStock={sale.remainingStock}
+            signedIn={!!session}
+            endsAt={sale.endsAt}
+            serverNow={sale.serverNow}
+          />
+          <EndNowButton saleId={sale.id} />
+        </>
       )}
 
       {sale.state === "upcoming" && (
