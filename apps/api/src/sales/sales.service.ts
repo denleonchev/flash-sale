@@ -1,7 +1,8 @@
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable } from "@nestjs/common";
 import { SALE_STATES, type SaleDto } from "@flash-sale/shared";
 import { SalesRepository } from "./sales.repository.js";
 import { toSaleDto } from "./sales.mapper.js";
+import type { CreateSaleDto } from "./dto/create-sale.dto.js";
 
 @Injectable()
 export class SalesService {
@@ -11,6 +12,16 @@ export class SalesService {
     const sale = await this.repo.findById(id);
     if (!sale) return null;
     return toSaleDto(sale, sale.stockTotal - sale._count.orders, new Date());
+  }
+
+  async createSale(dto: CreateSaleDto): Promise<SaleDto> {
+    const startsAt = new Date(dto.startsAt);
+    const endsAt = new Date(dto.endsAt);
+    if (endsAt <= startsAt) {
+      throw new BadRequestException("endsAt must be after startsAt");
+    }
+    const sale = await this.repo.create({ title: dto.title, stockTotal: dto.stockTotal, startsAt, endsAt });
+    return toSaleDto(sale, sale.stockTotal, new Date());
   }
 
   async getAllSales(): Promise<SaleDto[]> {

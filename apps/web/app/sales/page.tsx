@@ -11,6 +11,7 @@ export default async function CatalogPage() {
     return (
       <main>
         <h1>Drops</h1>
+        <a href="/admin/sales/new">+ Create sale</a>
         <p>No sales yet.</p>
       </main>
     );
@@ -19,6 +20,7 @@ export default async function CatalogPage() {
   return (
     <main>
       <h1>Drops</h1>
+      <a href="/admin/sales/new">+ Create sale</a>
       <ul>
         {sales.map((sale) => (
           <li key={sale.id}>

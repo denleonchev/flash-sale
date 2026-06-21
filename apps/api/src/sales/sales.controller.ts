@@ -1,10 +1,17 @@
-import { Controller, Get, NotFoundException, Param, ParseUUIDPipe } from "@nestjs/common";
+import { Body, Controller, Get, NotFoundException, Param, ParseUUIDPipe, Post } from "@nestjs/common";
 import type { SaleDto } from "@flash-sale/shared";
 import { SalesService } from "./sales.service.js";
+import { CreateSaleDto } from "./dto/create-sale.dto.js";
 
 @Controller("sales")
 export class SalesController {
   constructor(private readonly service: SalesService) {}
+
+  // TODO NFR-7: restrict to admin role
+  @Post()
+  createSale(@Body() dto: CreateSaleDto): Promise<SaleDto> {
+    return this.service.createSale(dto);
+  }
 
   /** Catalog: all sales sorted live → upcoming → ended (supports FR-5 / UR-1). */
   @Get()

@@ -22,4 +22,8 @@ export class SalesRepository {
       },
     });
   }
+
+  create(data: { title: string; stockTotal: number; startsAt: Date; endsAt: Date }): Promise<Sale> {
+    return this.prisma.db.sale.create({ data });
+  }
 }

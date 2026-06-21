@@ -104,6 +104,14 @@ export function deriveSaleState(
   return SALE_STATES.LIVE;
 }
 
+/** FR-1: body of POST /sales. Neither Zod nor class-validator live here — shared stays framework-agnostic. */
+export interface CreateSale {
+  title: string;
+  stockTotal: number;
+  startsAt: string; // ISO-8601
+  endsAt: string;   // ISO-8601
+}
+
 /** Neither Zod nor class-validator live here — shared stays framework-agnostic. (FR-5) */
 export interface SaleDto {
   id: string;
