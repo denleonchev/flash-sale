@@ -1,8 +1,7 @@
-import { deriveSaleState, type SaleDto } from "@flash-sale/shared";
-import type { Sale } from "@flash-sale/db/client";
+import { deriveSaleState, type Sale } from "@flash-sale/shared";
+import type { Sale as SaleModel } from "@flash-sale/db/client";
 
-/** Maps a DB Sale row + precomputed remainingStock to a SaleDto. */
-export function toSaleDto(sale: Sale, remainingStock: number, now: Date): SaleDto {
+export function toSale(sale: SaleModel, remainingStock: number, now: Date): Sale {
   return {
     id: sale.id,
     title: sale.title,

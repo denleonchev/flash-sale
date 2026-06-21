@@ -1,4 +1,4 @@
-import type { SaleDto } from "@flash-sale/shared";
+import type { Sale } from "@flash-sale/shared";
 import { z } from "zod";
 
 /**
@@ -7,7 +7,7 @@ import { z } from "zod";
  * "parse, don't validate". Zod lives only on the web side; the api validates its own
  * inbound requests with class-validator (see memory: validation-split).
  *
- * `satisfies z.ZodType<SaleDto>` binds the schema to the shared interface: if the
+ * `satisfies z.ZodType<Sale>` binds the schema to the shared interface: if the
  * contract changes, this stops compiling, so schema and type cannot drift.
  */
 export const SaleSchema = z.object({
@@ -18,4 +18,4 @@ export const SaleSchema = z.object({
   startsAt: z.string(),
   endsAt: z.string(),
   serverNow: z.string(),
-}) satisfies z.ZodType<SaleDto>;
+}) satisfies z.ZodType<Sale>;

@@ -113,7 +113,7 @@ export interface CreateSale {
 }
 
 /** Neither Zod nor class-validator live here — shared stays framework-agnostic. (FR-5) */
-export interface SaleDto {
+export interface Sale {
   id: string;
   title: string;
   state: SaleState;
