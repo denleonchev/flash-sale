@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth0 } from "@/lib/auth0";
+import { getSession } from "@/lib/session";
 import { encodeBuyerId } from "@/lib/buyer-id";
 import { mintSocketTicket } from "@/lib/socket-ticket";
 
@@ -10,7 +10,7 @@ import { mintSocketTicket } from "@/lib/socket-ticket";
  * pattern preserved). Returns `{ ticket: null }` for anonymous visitors. (FR-18)
  */
 export async function GET(): Promise<NextResponse> {
-  const session = await auth0.getSession();
+  const session = await getSession();
   if (!session?.user.sub) {
     return NextResponse.json({ ticket: null });
   }

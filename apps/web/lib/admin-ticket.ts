@@ -18,22 +18,25 @@ export function mintAdminTicket(): string {
 
 // @auth0/nextjs-auth0 v4 builds session.user from /userinfo which omits custom
 // namespace claims. They are only in the ID token — decode it directly.
-export function isAdminSession(session: {
-  tokenSet?: { idToken?: string };
-  user: Record<string, unknown>;
-}): boolean {
+const ROLES_CLAIM = "https://flash-sale/roles" as const;
+
+type Session = { tokenSet?: { idToken?: string }; user: Record<string, unknown> };
+
+function decodeRoles(session: Session): string[] {
   const idToken = session.tokenSet?.idToken;
   if (idToken) {
     try {
       const payload = JSON.parse(
         Buffer.from(idToken.split(".")[1], "base64url").toString(),
       ) as Record<string, unknown>;
-      const roles = (payload["https://flash-sale/roles"] as string[]) ?? [];
-      return roles.includes("admin");
-    } catch {
-      // fall through to user object
-    }
+      return (payload[ROLES_CLAIM] as string[]) ?? [];
+    } catch { /* fall through */ }
   }
-  const roles = (session.user["https://flash-sale/roles"] as string[]) ?? [];
-  return roles.includes("admin");
+  return (session.user[ROLES_CLAIM] as string[]) ?? [];
 }
+
+export function hasRole(session: Session, role: string): boolean {
+  return decodeRoles(session).includes(role);
+}
+
+export const isAdminSession = (session: Session) => hasRole(session, "admin");

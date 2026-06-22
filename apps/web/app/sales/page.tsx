@@ -1,5 +1,4 @@
-import { auth0 } from "@/lib/auth0";
-import { isAdminSession } from "@/lib/admin-ticket";
+import { getSession } from "@/lib/session";
 import { getSales } from "./get-sales";
 
 /**
@@ -7,8 +6,8 @@ import { getSales } from "./get-sales";
  * derived state + remaining stock. Click → single-event page (S-1.1).
  */
 export default async function CatalogPage() {
-  const [sales, session] = await Promise.all([getSales(), auth0.getSession()]);
-  const isAdmin = session ? isAdminSession(session) : false;
+  const [sales, session] = await Promise.all([getSales(), getSession()]);
+  const isAdmin = session?.isAdmin ?? false;
 
   if (sales.length === 0) {
     return (

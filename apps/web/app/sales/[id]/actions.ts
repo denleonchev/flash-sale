@@ -2,9 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { apiFetch } from "@/lib/api";
-import { auth0 } from "@/lib/auth0";
+import { getSession } from "@/lib/session";
 import { encodeBuyerId } from "@/lib/buyer-id";
-import { isAdminSession, mintAdminTicket } from "@/lib/admin-ticket";
+import { mintAdminTicket } from "@/lib/admin-ticket";
 
 export type BuyState = {
   errorMessage?: string;
@@ -18,7 +18,7 @@ export type BuyState = {
  * server-side — never from the client (NFR-9).
  */
 export async function buyAction(saleId: string): Promise<BuyState> {
-  const session = await auth0.getSession();
+  const session = await getSession();
   if (!session) {
     return { errorMessage: "Sign in required" };
   }
@@ -48,8 +48,8 @@ export async function buyAction(saleId: string): Promise<BuyState> {
 }
 
 export async function endSaleAction(saleId: string, _formData: FormData): Promise<void> {
-  const session = await auth0.getSession();
-  if (!session || !isAdminSession(session)) {
+  const session = await getSession();
+  if (!session?.isAdmin) {
     throw new Error("Forbidden");
   }
   const res = await apiFetch(`/sales/${saleId}/end`, {

@@ -2,8 +2,8 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { apiFetch } from "@/lib/api";
-import { auth0 } from "@/lib/auth0";
-import { isAdminSession, mintAdminTicket } from "@/lib/admin-ticket";
+import { getSession } from "@/lib/session";
+import { mintAdminTicket } from "@/lib/admin-ticket";
 import { SaleSchema } from "@/lib/schemas/sale.schema";
 import type { CreateSale } from "@flash-sale/shared";
 
@@ -13,8 +13,8 @@ export async function createSaleAction(
   _prev: CreateSaleState,
   formData: FormData,
 ): Promise<CreateSaleState> {
-  const session = await auth0.getSession();
-  if (!session || !isAdminSession(session)) {
+  const session = await getSession();
+  if (!session?.isAdmin) {
     return { errorMessage: "Forbidden" };
   }
 

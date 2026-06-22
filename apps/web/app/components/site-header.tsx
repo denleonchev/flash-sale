@@ -1,9 +1,8 @@
-import { auth0 } from "@/lib/auth0";
-import { isAdminSession } from "@/lib/admin-ticket";
+import { getSession } from "@/lib/session";
 
 export async function SiteHeader() {
-  const session = await auth0.getSession();
-  const isAdmin = session ? isAdminSession(session) : false;
+  const session = await getSession();
+  const isAdmin = session?.isAdmin ?? false;
 
   return (
     <header>
