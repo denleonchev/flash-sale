@@ -2,6 +2,8 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { apiFetch } from "@/lib/api";
+import { auth0 } from "@/lib/auth0";
+import { isAdminSession, mintAdminTicket } from "@/lib/admin-ticket";
 import { SaleSchema } from "@/lib/schemas/sale.schema";
 import type { CreateSale } from "@flash-sale/shared";
 
@@ -11,7 +13,11 @@ export async function createSaleAction(
   _prev: CreateSaleState,
   formData: FormData,
 ): Promise<CreateSaleState> {
-  // TODO NFR-7: check admin role from Auth0 session before proceeding.
+  const session = await auth0.getSession();
+  if (!session || !isAdminSession(session)) {
+    return { errorMessage: "Forbidden" };
+  }
+
   // datetime-local gives "YYYY-MM-DDTHH:mm" (local time) — convert to ISO UTC.
   const body: CreateSale = {
     title: formData.get("title") as string,
@@ -24,7 +30,7 @@ export async function createSaleAction(
   try {
     res = await apiFetch("/sales", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "X-Admin-Ticket": mintAdminTicket() },
       body: JSON.stringify(body),
     });
   } catch {

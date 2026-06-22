@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { auth0 } from "@/lib/auth0";
+import { isAdminSession } from "@/lib/admin-ticket";
 import { Countdown } from "./countdown";
 import { EndNowButton } from "./end-now-button";
 import { getSale } from "./get-sale";
@@ -23,20 +24,13 @@ export default async function SalePage({
   }
 
   const session = await auth0.getSession();
+  const isAdmin = session ? isAdminSession(session) : false;
   const soldOut = sale.state === "ended" && sale.remainingStock <= 0;
   // FR-17: live stock, countdown and Buy for an in-progress sale render client-side
   // (LiveStock) so Socket.IO can keep the number current. The upcoming branch stays
   // server-rendered — nothing is live before the sale starts.
-
   return (
     <main>
-      {session && (
-        <p>
-          Signed in as {session.user.name ?? session.user.email ?? "buyer"} ·{" "}
-          <a href="/auth/logout">Sign out</a>
-        </p>
-      )}
-
       <h1>{sale.title}</h1>
 
       {sale.state === "live" && (
@@ -48,7 +42,7 @@ export default async function SalePage({
             endsAt={sale.endsAt}
             serverNow={sale.serverNow}
           />
-          <EndNowButton saleId={sale.id} />
+          {isAdmin && <EndNowButton saleId={sale.id} />}
         </>
       )}
 

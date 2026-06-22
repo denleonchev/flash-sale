@@ -1,3 +1,5 @@
+import { auth0 } from "@/lib/auth0";
+import { isAdminSession } from "@/lib/admin-ticket";
 import { getSales } from "./get-sales";
 
 /**
@@ -5,13 +7,14 @@ import { getSales } from "./get-sales";
  * derived state + remaining stock. Click → single-event page (S-1.1).
  */
 export default async function CatalogPage() {
-  const sales = await getSales();
+  const [sales, session] = await Promise.all([getSales(), auth0.getSession()]);
+  const isAdmin = session ? isAdminSession(session) : false;
 
   if (sales.length === 0) {
     return (
       <main>
         <h1>Drops</h1>
-        <a href="/admin/sales/new">+ Create sale</a>
+        {isAdmin && <a href="/admin/sales/new">+ Create sale</a>}
         <p>No sales yet.</p>
       </main>
     );
@@ -20,7 +23,7 @@ export default async function CatalogPage() {
   return (
     <main>
       <h1>Drops</h1>
-      <a href="/admin/sales/new">+ Create sale</a>
+      {isAdmin && <a href="/admin/sales/new">+ Create sale</a>}
       <ul>
         {sales.map((sale) => (
           <li key={sale.id}>

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { apiFetch } from "@/lib/api";
 import { auth0 } from "@/lib/auth0";
 import { encodeBuyerId } from "@/lib/buyer-id";
+import { isAdminSession, mintAdminTicket } from "@/lib/admin-ticket";
 
 export type BuyState = {
   errorMessage?: string;
@@ -47,8 +48,14 @@ export async function buyAction(saleId: string): Promise<BuyState> {
 }
 
 export async function endSaleAction(saleId: string, _formData: FormData): Promise<void> {
-  // TODO NFR-7: check admin role from Auth0 session before proceeding.
-  const res = await apiFetch(`/sales/${saleId}/end`, { method: "POST" });
+  const session = await auth0.getSession();
+  if (!session || !isAdminSession(session)) {
+    throw new Error("Forbidden");
+  }
+  const res = await apiFetch(`/sales/${saleId}/end`, {
+    method: "POST",
+    headers: { "X-Admin-Ticket": mintAdminTicket() },
+  });
   if (!res.ok) throw new Error(`Failed to end sale (${res.status})`);
   revalidatePath(`/sales/${saleId}`);
 }

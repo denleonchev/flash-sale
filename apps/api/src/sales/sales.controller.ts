@@ -1,5 +1,6 @@
-import { Body, Controller, Get, NotFoundException, Param, ParseUUIDPipe, Post } from "@nestjs/common";
+import { Body, Controller, Get, NotFoundException, Param, ParseUUIDPipe, Post, UseGuards } from "@nestjs/common";
 import type { Sale } from "@flash-sale/shared";
+import { AdminGuard } from "../admin/admin.guard.js";
 import { SalesService } from "./sales.service.js";
 import { CreateSaleDto } from "./dto/create-sale.dto.js";
 
@@ -7,13 +8,13 @@ import { CreateSaleDto } from "./dto/create-sale.dto.js";
 export class SalesController {
   constructor(private readonly service: SalesService) {}
 
-  // TODO NFR-7: restrict to admin role
+  @UseGuards(AdminGuard)
   @Post()
   createSale(@Body() dto: CreateSaleDto): Promise<Sale> {
     return this.service.createSale(dto);
   }
 
-  // TODO NFR-7: restrict to admin role
+  @UseGuards(AdminGuard)
   @Post(":id/end")
   endSale(@Param("id", ParseUUIDPipe) id: string): Promise<Sale> {
     return this.service.endSale(id);
