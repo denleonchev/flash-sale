@@ -22,6 +22,8 @@ export async function createSaleAction(
   const body: CreateSale = {
     title: formData.get("title") as string,
     stockTotal: Number(formData.get("stockTotal")),
+    // price is entered in dollars; Stripe and DB work in cents
+    priceCents: Math.round(parseFloat(formData.get("price") as string) * 100),
     startsAt: new Date(formData.get("startsAt") as string).toISOString(),
     endsAt: new Date(formData.get("endsAt") as string).toISOString(),
   };

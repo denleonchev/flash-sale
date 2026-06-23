@@ -30,24 +30,28 @@ async function seed(): Promise<void> {
       {
         title: "Upcoming Drop — Vintage Watch",
         stockTotal: 10,
+        priceCents: 29900,
         startsAt: new Date(Date.now() + DAY),
         endsAt: new Date(Date.now() + 2 * DAY),
       },
       {
         title: "Live Drop — Limited Sneakers",
         stockTotal: 5,
+        priceCents: 14900,
         startsAt: new Date(Date.now() - HOUR),
         endsAt: new Date(Date.now() + HOUR),
       },
       {
         title: "Past Drop — Concert Tickets",
         stockTotal: 20,
+        priceCents: 5900,
         startsAt: new Date(Date.now() - 2 * DAY),
         endsAt: new Date(Date.now() - DAY),
       },
       {
         title: "Sold-out Drop — Signed Poster",
         stockTotal: 0,
+        priceCents: 9900,
         startsAt: new Date(Date.now() - HOUR),
         endsAt: new Date(Date.now() + HOUR),
       },

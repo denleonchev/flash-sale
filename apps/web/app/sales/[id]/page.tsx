@@ -28,9 +28,12 @@ export default async function SalePage({
   // FR-17: live stock, countdown and Buy for an in-progress sale render client-side
   // (LiveStock) so Socket.IO can keep the number current. The upcoming branch stays
   // server-rendered — nothing is live before the sale starts.
+  const priceUsd = (sale.priceCents / 100).toFixed(2);
+
   return (
     <main>
       <h1>{sale.title}</h1>
+      <p>${priceUsd}</p>
 
       {sale.state === "live" && (
         <>

@@ -18,6 +18,10 @@ export function CreateSaleForm() {
         <input id="stockTotal" name="stockTotal" type="number" min="1" required />
       </div>
       <div>
+        <label htmlFor="price">Price (USD)</label>
+        <input id="price" name="price" type="number" min="0.01" step="0.01" required />
+      </div>
+      <div>
         <label htmlFor="startsAt">Starts at</label>
         <input id="startsAt" name="startsAt" type="datetime-local" required />
       </div>

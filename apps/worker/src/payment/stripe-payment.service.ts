@@ -2,9 +2,6 @@ import { Injectable } from "@nestjs/common";
 import Stripe from "stripe";
 import { PaymentGateway, type PaymentResult } from "./payment.gateway.js";
 
-// FR-12: fixed demo amount — the data model has no price field.
-const DEMO_AMOUNT_CENTS = 100;
-
 @Injectable()
 export class StripePaymentService extends PaymentGateway {
   private readonly stripe: Stripe;
@@ -14,13 +11,13 @@ export class StripePaymentService extends PaymentGateway {
     this.stripe = new Stripe(process.env["STRIPE_SECRET_KEY"]!);
   }
 
-  async charge(idempotencyKey: string, paymentMethodId?: string): Promise<PaymentResult> {
+  async charge(idempotencyKey: string, paymentMethodId?: string, priceCents = 100): Promise<PaymentResult> {
     // Fallback allows testing without a frontend via STRIPE_PAYMENT_METHOD env var.
     const method = paymentMethodId ?? process.env["STRIPE_PAYMENT_METHOD"] ?? "pm_card_visa";
     try {
       const intent = await this.stripe.paymentIntents.create(
         {
-          amount: DEMO_AMOUNT_CENTS,
+          amount: priceCents,
           currency: "usd",
           payment_method: method,
           confirm: true,

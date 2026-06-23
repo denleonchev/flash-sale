@@ -10,5 +10,6 @@ export function toSale(sale: SaleModel, remainingStock: number, now: Date): Sale
     startsAt: sale.startsAt.toISOString(),
     endsAt: sale.endsAt.toISOString(),
     serverNow: now.toISOString(),
+    priceCents: sale.priceCents,
   };
 }

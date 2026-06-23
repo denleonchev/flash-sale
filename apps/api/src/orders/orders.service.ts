@@ -3,6 +3,7 @@ import {
   ORDER_STATUSES,
   SALE_STATES,
   type OrderResultUpdatedPayload,
+  type Sale,
 } from "@flash-sale/shared";
 
 import { SalesService } from "../sales/sales.service.js";
@@ -35,14 +36,14 @@ export class OrdersService {
   ) {}
 
   async buy(dto: CreateOrderDto): Promise<BuyResult> {
-    await this.assertSaleLive(dto.saleId);
+    const sale = await this.assertSaleLive(dto.saleId);
 
     // Non-failed order (in_progress/confirmed/sold_out) is a permanent block.
     const blocking = await this.ordersRepository.findBlockingOrder(dto.buyerId, dto.saleId);
     if (blocking) return { status: "accepted", idempotencyKey: blocking.idempotencyKey };
 
     const idempotencyKey = await this.buildIdempotencyKey(dto.buyerId, dto.saleId);
-    return this.executeOrder(dto, idempotencyKey);
+    return this.executeOrder(dto, idempotencyKey, sale.priceCents);
   }
 
   getLatestFinalizedOrder(
@@ -57,7 +58,7 @@ export class OrdersService {
   }
 
   // FR-3: reject unless the sale is currently live.
-  private async assertSaleLive(saleId: string): Promise<void> {
+  private async assertSaleLive(saleId: string): Promise<Sale> {
     const sale = await this.salesService.getSaleById(saleId);
     if (!sale) {
       throw new ConflictException("sale not found");
@@ -67,6 +68,7 @@ export class OrdersService {
         sale.state === SALE_STATES.UPCOMING ? "sale not started yet" : "sale has ended";
       throw new ConflictException(reason);
     }
+    return sale;
   }
 
   // FR-14, FR-16: retry gets a unique suffix so the UNIQUE constraint is not violated across attempts.
@@ -85,7 +87,7 @@ export class OrdersService {
    * - Enqueue failure rolls back: deleteOrder + releaseStock so no orphan
    *   in_progress row is left without a job to resolve it.
    */
-  private async executeOrder(dto: CreateOrderDto, idempotencyKey: string): Promise<BuyResult> {
+  private async executeOrder(dto: CreateOrderDto, idempotencyKey: string, priceCents: number): Promise<BuyResult> {
     const reserved = await this.stockService.reserveStock(dto.saleId, dto.quantity);
     if (!reserved) {
       throw new ConflictException("sold out");
@@ -107,7 +109,7 @@ export class OrdersService {
     }
 
     try {
-      await this.orderProducer.enqueueOrderJob(dto.saleId, dto.buyerId, idempotencyKey, dto.quantity, dto.paymentMethodId);
+      await this.orderProducer.enqueueOrderJob(dto.saleId, dto.buyerId, idempotencyKey, dto.quantity, priceCents, dto.paymentMethodId);
     } catch (err) {
       // Enqueue failed: orphan in_progress row would block all future retries.
       await this.ordersRepository.deleteOrder(orderId);

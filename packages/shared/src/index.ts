@@ -68,6 +68,8 @@ export interface OrderJobPayload {
   quantity: number;
   /** FR-12 [Ext]: Stripe PaymentMethod ID from the frontend. Absent when PAYMENT_PROVIDER=fake. */
   paymentMethodId?: string;
+  /** FR-12 [Ext]: sale price in cents forwarded from the Sale record so the worker never re-fetches it. */
+  priceCents: number;
 }
 
 export interface OrderResult {
@@ -112,6 +114,7 @@ export interface CreateSale {
   stockTotal: number;
   startsAt: string; // ISO-8601
   endsAt: string;   // ISO-8601
+  priceCents: number; // price in smallest currency unit (cents); Stripe uses integers
 }
 
 /** Neither Zod nor class-validator live here — shared stays framework-agnostic. (FR-5) */
@@ -123,4 +126,5 @@ export interface Sale {
   startsAt: string; // ISO-8601 — JSON-serialisable
   endsAt: string;
   serverNow: string; // anchors client countdown; eliminates clock skew
+  priceCents: number;
 }

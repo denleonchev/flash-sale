@@ -18,4 +18,5 @@ export const SaleSchema = z.object({
   startsAt: z.string(),
   endsAt: z.string(),
   serverNow: z.string(),
+  priceCents: z.number().int().positive(),
 }) satisfies z.ZodType<Sale>;

@@ -62,6 +62,7 @@ export class OrderFinalizer {
     const { success, paymentRef } = await this.payment.charge(
       job.idempotencyKey,
       job.paymentMethodId,
+      job.priceCents,
     );
 
     if (success) {

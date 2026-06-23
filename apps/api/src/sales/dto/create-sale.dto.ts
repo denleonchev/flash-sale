@@ -11,6 +11,10 @@ export class CreateSaleDto implements CreateSale {
   @Min(1)
   stockTotal!: number;
 
+  @IsInt()
+  @Min(1)
+  priceCents!: number;
+
   @IsDateString()
   startsAt!: string;
 

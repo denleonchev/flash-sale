@@ -28,9 +28,10 @@ export class OrderProducer {
     buyerId: string,
     idempotencyKey: string,
     quantity: number,
+    priceCents: number,
     paymentMethodId?: string,
   ): Promise<void> {
-    const payload: OrderJobPayload = { saleId, buyerId, idempotencyKey, quantity, paymentMethodId };
+    const payload: OrderJobPayload = { saleId, buyerId, idempotencyKey, quantity, priceCents, paymentMethodId };
     const job = await this.queue.add(ORDER_JOB, payload, {
       jobId: idempotencyKey,
       removeOnComplete: true,
