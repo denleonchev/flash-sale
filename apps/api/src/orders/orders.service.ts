@@ -107,7 +107,7 @@ export class OrdersService {
     }
 
     try {
-      await this.orderProducer.enqueueOrderJob(dto.saleId, dto.buyerId, idempotencyKey, dto.quantity);
+      await this.orderProducer.enqueueOrderJob(dto.saleId, dto.buyerId, idempotencyKey, dto.quantity, dto.paymentMethodId);
     } catch (err) {
       // Enqueue failed: orphan in_progress row would block all future retries.
       await this.ordersRepository.deleteOrder(orderId);

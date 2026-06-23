@@ -17,7 +17,7 @@ export type BuyState = {
  * without a client-side wrapper. Identity comes from the Auth0 session
  * server-side — never from the client (NFR-9).
  */
-export async function buyAction(saleId: string): Promise<BuyState> {
+export async function buyAction(saleId: string, paymentMethodId?: string): Promise<BuyState> {
   const session = await getSession();
   if (!session) {
     return { errorMessage: "Sign in required" };
@@ -29,7 +29,12 @@ export async function buyAction(saleId: string): Promise<BuyState> {
     res = await apiFetch("/orders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ saleId, buyerId, quantity: 1 }),
+      body: JSON.stringify({
+        saleId,
+        buyerId,
+        quantity: 1,
+        ...(paymentMethodId !== undefined && { paymentMethodId }),
+      }),
     });
   } catch {
     return { errorMessage: "Network error" };

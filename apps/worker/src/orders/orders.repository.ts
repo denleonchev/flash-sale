@@ -27,7 +27,7 @@ export class OrdersRepository {
    * - Idempotency (NFR-2): count===0 means the row is already terminal; we read back
    *   and republish without a second write. No INSERT P2002 path needed.
    */
-  async confirmOrderGuarded(job: OrderJobPayload): Promise<GuardedOrderResult> {
+  async confirmOrderGuarded(job: OrderJobPayload, paymentRef: string | null): Promise<GuardedOrderResult> {
     return this.prisma.db.$transaction(async (tx) => {
       // Row lock: any concurrent confirm for this sale blocks until we commit.
       const rows = await tx.$queryRaw<{ stock_total: number }[]>`
@@ -47,12 +47,14 @@ export class OrdersRepository {
 
       // Guard: WHERE status = in_progress ensures at-most-once semantics on retry.
       // If the row is already terminal (crash + BullMQ redelivery), updateMany is a no-op.
+      // paymentRef written on both confirmed and sold_out paths so a retry can still
+      // identify the PI to refund if the row is already terminal. (FR-12, NFR-2)
       await tx.order.updateMany({
         where: {
           idempotencyKey: job.idempotencyKey,
           status: OrderStatus.in_progress,
         },
-        data: { status: targetStatus },
+        data: { status: targetStatus, paymentRef },
       });
 
       const order = await tx.order.findUniqueOrThrow({

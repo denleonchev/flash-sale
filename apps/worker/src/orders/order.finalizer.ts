@@ -1,9 +1,11 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Inject, Injectable, Logger } from "@nestjs/common";
+import { OrderStatus } from "@flash-sale/db/client";
 import { type OrderJobPayload } from "@flash-sale/shared";
 import { OrdersRepository, type GuardedOrderResult } from "./orders.repository.js";
 import { StockReleaseService } from "./stock-release.service.js";
 import { StockPublisher } from "../realtime/stock.publisher.js";
 import { OrderResultPublisher } from "../realtime/order-result.publisher.js";
+import { PaymentGateway } from "../payment/payment.gateway.js";
 
 /**
  * Concurrency correctness (§4, .claude/rules/concurrency.md):
@@ -18,6 +20,11 @@ import { OrderResultPublisher } from "../realtime/order-result.publisher.js";
  *   stuck (under-counted), but the DB guard prevents oversell regardless.
  * - Idempotency (NFR-2): the WHERE guard on both paths replaces the old P2002 catch.
  *   No second INSERT, no second confirm, no double-release.
+ * - Stripe idempotency (FR-12, NFR-2): charge() passes idempotencyKey to Stripe so
+ *   a BullMQ retry reuses the same PaymentIntent without a second charge.
+ * - Refund on sold_out (FR-12): if Stripe charged but DB says sold_out, we refund
+ *   immediately. refund() passes `refund-${idempotencyKey}` to Stripe so a retry
+ *   after a crash between the DB write and the refund call is also idempotent.
  * - Live stock (FR-17): after the transition we publish the post-confirm remaining.
  * - Per-buyer result delivery (FR-18): published after the stock broadcast.
  */
@@ -30,13 +37,8 @@ export class OrderFinalizer {
     private readonly stockPublisher: StockPublisher,
     private readonly orderResultPublisher: OrderResultPublisher,
     private readonly stockReleaseService: StockReleaseService,
+    @Inject(PaymentGateway) private readonly payment: PaymentGateway,
   ) {}
-
-  /** FR-11: PAYMENT_FAIL_RATE env var (0.0–1.0, default 0 = always succeed). */
-  private simulatePayment(_job: OrderJobPayload): { success: boolean } {
-    const paymentFailRate = parseFloat(process.env["PAYMENT_FAIL_RATE"] ?? "0");
-    return { success: Math.random() >= paymentFailRate };
-  }
 
   async finalizeOrder(job: OrderJobPayload): Promise<void> {
     const { status, orderId, remainingStock } = await this.resolveOrder(job);
@@ -57,10 +59,19 @@ export class OrderFinalizer {
   }
 
   private async resolveOrder(job: OrderJobPayload): Promise<GuardedOrderResult> {
-    if (this.simulatePayment(job).success) {
-      // Success: guarded UPDATE decides confirmed vs sold_out under sale-row lock.
-      // count=0 (redelivery) → reads back the existing terminal row. (NFR-2)
-      return this.ordersRepo.confirmOrderGuarded(job);
+    const { success, paymentRef } = await this.payment.charge(
+      job.idempotencyKey,
+      job.paymentMethodId,
+    );
+
+    if (success) {
+      const result = await this.ordersRepo.confirmOrderGuarded(job, paymentRef);
+      // sold_out after Stripe charged: refund so the buyer is not billed for an item
+      // they didn't receive. Idempotent via `refund-${idempotencyKey}` on retry.
+      if (result.status === OrderStatus.sold_out && paymentRef !== null) {
+        await this.payment.refund(paymentRef, job.idempotencyKey);
+      }
+      return result;
     }
 
     // Failure: transition in_progress→failed, release Redis unit only if we made

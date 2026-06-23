@@ -66,6 +66,8 @@ export interface OrderJobPayload {
    */
   idempotencyKey: string;
   quantity: number;
+  /** FR-12 [Ext]: Stripe PaymentMethod ID from the frontend. Absent when PAYMENT_PROVIDER=fake. */
+  paymentMethodId?: string;
 }
 
 export interface OrderResult {

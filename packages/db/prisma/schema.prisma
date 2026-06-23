@@ -58,6 +58,8 @@ model Order {
   // Set when the buyer acknowledges the result notification (FR-19). Snapshot is
   // suppressed on subsequent subscriptions once acknowledged.
   acknowledgedAt DateTime?   @map("acknowledged_at")
+  // FR-12 [Ext]: Stripe PaymentIntent ID; null when using the fake payment provider.
+  paymentRef     String?     @map("payment_ref")
 
   sale Sale @relation(fields: [saleId], references: [id])
 
