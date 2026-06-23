@@ -13,6 +13,7 @@ import { z } from "zod";
 export const SaleSchema = z.object({
   id: z.string(),
   title: z.string(),
+  description: z.string().optional(),
   state: z.enum(["upcoming", "live", "ended"]),
   remainingStock: z.number().int().nonnegative(),
   startsAt: z.string(),

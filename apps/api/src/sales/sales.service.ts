@@ -19,7 +19,7 @@ export class SalesService {
     if (endsAt <= startsAt) {
       throw new BadRequestException("endsAt must be after startsAt");
     }
-    const sale = await this.repo.create({ title: dto.title, stockTotal: dto.stockTotal, priceCents: dto.priceCents, startsAt, endsAt });
+    const sale = await this.repo.create({ title: dto.title, description: dto.description, stockTotal: dto.stockTotal, priceCents: dto.priceCents, startsAt, endsAt });
     return toSale(sale, sale.stockTotal, new Date());
   }
 

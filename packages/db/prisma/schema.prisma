@@ -28,13 +28,14 @@ enum OrderStatus {
 /// + stock, never stored (FR-2). Authoritative stock = stockTotal minus confirmed
 /// orders (§5).
 model Sale {
-  id         String   @id @default(uuid())
-  title      String
-  stockTotal Int      @map("stock_total")
-  priceCents Int      @map("price_cents") // FR-12: sale price; Stripe charges this exact amount
-  startsAt   DateTime @map("starts_at")
-  endsAt     DateTime @map("ends_at")
-  createdAt  DateTime @default(now()) @map("created_at")
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  stockTotal  Int      @map("stock_total")
+  priceCents  Int      @map("price_cents") // FR-12: sale price; Stripe charges this exact amount
+  startsAt    DateTime @map("starts_at")
+  endsAt      DateTime @map("ends_at")
+  createdAt   DateTime @default(now()) @map("created_at")
 
   orders Order[]
 

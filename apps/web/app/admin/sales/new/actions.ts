@@ -19,8 +19,10 @@ export async function createSaleAction(
   }
 
   // datetime-local gives "YYYY-MM-DDTHH:mm" (local time) — convert to ISO UTC.
+  const rawDescription = formData.get("description");
   const body: CreateSale = {
     title: formData.get("title") as string,
+    ...(rawDescription ? { description: rawDescription as string } : {}),
     stockTotal: Number(formData.get("stockTotal")),
     // price is entered in dollars; Stripe and DB work in cents
     priceCents: Math.round(parseFloat(formData.get("price") as string) * 100),

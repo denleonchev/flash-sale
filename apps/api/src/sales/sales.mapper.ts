@@ -5,6 +5,7 @@ export function toSale(sale: SaleModel, remainingStock: number, now: Date): Sale
   return {
     id: sale.id,
     title: sale.title,
+    ...(sale.description != null && { description: sale.description }),
     state: deriveSaleState({ startsAt: sale.startsAt, endsAt: sale.endsAt, remainingStock }, now),
     remainingStock,
     startsAt: sale.startsAt.toISOString(),

@@ -2,16 +2,27 @@ import { Body, Controller, Get, NotFoundException, Param, ParseUUIDPipe, Post, U
 import type { Sale } from "@flash-sale/shared";
 import { AdminGuard } from "../admin/admin.guard.js";
 import { SalesService } from "./sales.service.js";
+import { SalesAiService, type ImprovedSaleCopy } from "./sales.ai.service.js";
 import { CreateSaleDto } from "./dto/create-sale.dto.js";
+import { ImproveSaleCopyDto } from "./dto/improve-sale-copy.dto.js";
 
 @Controller("sales")
 export class SalesController {
-  constructor(private readonly service: SalesService) {}
+  constructor(
+    private readonly service: SalesService,
+    private readonly aiService: SalesAiService,
+  ) {}
 
   @UseGuards(AdminGuard)
   @Post()
   createSale(@Body() dto: CreateSaleDto): Promise<Sale> {
     return this.service.createSale(dto);
+  }
+
+  @UseGuards(AdminGuard)
+  @Post("improve-copy")
+  improveCopy(@Body() dto: ImproveSaleCopyDto): Promise<ImprovedSaleCopy> {
+    return this.aiService.improveSaleCopy(dto.title, dto.description ?? "");
   }
 
   @UseGuards(AdminGuard)

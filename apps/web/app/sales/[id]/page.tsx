@@ -33,6 +33,7 @@ export default async function SalePage({
   return (
     <main>
       <h1>{sale.title}</h1>
+      {sale.description && <p>{sale.description}</p>}
       <p>${priceUsd}</p>
 
       {sale.state === "live" && (

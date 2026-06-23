@@ -111,6 +111,7 @@ export function deriveSaleState(
 /** FR-1: body of POST /sales. Neither Zod nor class-validator live here — shared stays framework-agnostic. */
 export interface CreateSale {
   title: string;
+  description?: string;
   stockTotal: number;
   startsAt: string; // ISO-8601
   endsAt: string;   // ISO-8601
@@ -121,6 +122,7 @@ export interface CreateSale {
 export interface Sale {
   id: string;
   title: string;
+  description?: string;
   state: SaleState;
   remainingStock: number;
   startsAt: string; // ISO-8601 — JSON-serialisable

@@ -29,6 +29,7 @@ export default async function CatalogPage() {
             <a href={`/sales/${sale.id}`}>
               {sale.title} — {sale.state} — {sale.remainingStock} left
             </a>
+            {sale.description && <p>{sale.description}</p>}
           </li>
         ))}
       </ul>
