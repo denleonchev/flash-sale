@@ -114,7 +114,7 @@ What the system does. Grouped by area.
 
 ### 2.8 Search _(Ext)_
 
-- **FR-26 [Ext]** A buyer can search products by meaning, not only exact words
+- **FR-26 [Ext]** A buyer can search sales by meaning, not only exact words
   (semantic search). Search data is prepared in the background.
 
 ---

@@ -24,7 +24,8 @@ Application services:
 
 External managed dependencies:
 
-- **Postgres + pgvector** (Supabase) — durable data and vector search.
+- **Postgres + pgvector** (Supabase) — durable data, vector similarity for fraud
+  screening, and semantic search of sales.
 - **Redis** (Upstash) — atomic stock reservation, queue backend, pub/sub fan-out,
   and caching.
 - **AI / email providers** — Groq (text LLM) and an email provider; both optional
@@ -117,8 +118,8 @@ separate repositories.
 - Runs the payment step, writes the final order state in a **Postgres transaction**,
   and releases stock on failure. (FR-11, FR-13, FR-16)
 - Publishes the result to Redis pub/sub so the `api` can push it to the buyer.
-- Hosts background-only jobs: fraud screening, email, embeddings. (FR-20, FR-23,
-  FR-26, NFR-13, NFR-14)
+- Hosts background-only jobs: fraud screening, email, sale embeddings. (FR-20,
+  FR-23, FR-26, NFR-13, NFR-14)
 
 ---
 
@@ -168,23 +169,25 @@ durability — and together close the oversell gap. (NFR-1)
 
 ## 5. Data Model
 
-Postgres via **Prisma**. SQL tables for core data, a JSONB column for flexible
-state, a `vector` column (pgvector) for optional search.
+Postgres via **Prisma**. Two core tables; no separate users or products tables.
+pgvector serves two purposes: fraud screening (order signal embeddings) and
+semantic search (sale title/description embeddings).
 
-- **users** — `id`, `email`, `password_hash`, `role` (buyer | admin | moderator).
-- **products** — `id`, `title`, `description`, `tags`, `embedding vector` _(Ext)_.
-- **sales** — `id`, `product_id`, `stock_total`, `starts_at`, `ends_at`. State
-  (upcoming/live/ended) is derived, not stored. (FR-2)
-- **orders** — `id`, `sale_id`, `buyer_id`, `idempotency_key` (unique per
-  buyer+sale), `status` (in_progress | confirmed | sold_out | failed), `payment_ref`
-  _(Ext)_, `created_at`. api writes `in_progress` before enqueue; the worker
-  transitions it to exactly one terminal status. The unique key enforces idempotency
-  at the DB level too. (FR-14)
-- **order_events** — `id`, `order_id`, `type`, `payload JSONB`, `created_at`.
-  Append-only log (reserved, paid, confirmed, released, screened…). The JSONB
-  payload is the NoSQL part: different event types carry different shapes.
-- **fraud_flags** _(Ext)_ — `id`, `order_id`, `risk`, `reason`, `status`
-  (open | reviewed). (FR-22)
+- **sales** — `id`, `title`, `description`, `stock_total`, `price_cents`,
+  `starts_at`, `ends_at`, `created_at`, `embedding vector` _(Ext)_. Product details
+  live directly on the sale row — there is no separate products table. The embedding
+  is computed in the background from `title` + `description` and used for semantic
+  search. State (upcoming/live/ended) is derived, not
+  stored. (FR-1, FR-2)
+- **orders** — `id`, `sale_id`, `buyer_id` (base64url-encoded Auth0 `sub`),
+  `idempotency_key` (unique per buyer+sale), `status` (in_progress | confirmed |
+  sold_out | failed), `payment_ref` _(Ext)_, `acknowledged_at`, `created_at`. api
+  writes `in_progress` before enqueue; the worker transitions it to exactly one
+  terminal status. The unique key enforces idempotency at the DB level too.
+  `acknowledged_at` is set when the buyer confirms receipt of the result; subsequent
+  reconnect snapshots are suppressed once it is set. (FR-14, FR-19)
+- **fraud_flags** _(Ext, not yet built)_ — `id`, `order_id`, `risk`, `reason`,
+  `status` (open | reviewed). (FR-22)
 
 Authoritative stock lives in Postgres (`stock_total` minus confirmed orders). The
 Redis counter is a fast working copy for the hot path; the database is the source of
@@ -209,13 +212,17 @@ truth.
 All optional features are background jobs in the worker, off the purchase path, so
 the core flow works fully without them. (NFR-13)
 
-- **Fraud screening** — after order creation: gather signals → Groq scores risk → if
-  risky, Groq drafts a reviewer note → store a `fraud_flag`. Per order, never on a
-  stream, to respect Groq's rate limits. (FR-20–22)
+- **Fraud screening** — after order creation: gather signals → embed them locally
+  (transformers.js) → vector similarity search (pgvector) for known patterns → Groq
+  scores risk → if risky, Groq drafts a reviewer note → store a `fraud_flag`. Per
+  order, never on a stream, to respect Groq's rate limits. (FR-20–22)
 - **Email** — a separate job type, sent with retries and idempotency (one email per
   outcome); a failed provider call is retried with backoff. (FR-23–25, NFR-6)
-- **Embeddings** — computed locally (transformers.js / ONNX) in the worker, lazily
-  and one at a time, so the weak VM is never blocked. (FR-26, NFR-14)
+- **Sale embeddings** — computed locally (transformers.js / ONNX) from `title` +
+  `description`, stored as a pgvector column on the sale row. Run lazily in the
+  background, one at a time, so the VM is never blocked. Powers semantic search
+  (FR-26). (NFR-14)
+
 
 ---
 
@@ -257,10 +264,9 @@ the core flow works fully without them. (NFR-13)
   pgvector), and AI tools handle it well. The cost — explicit locking / guarded
   updates need `$queryRaw` — is small, since those concurrency-critical spots are
   hand-written and hand-verified anyway.
-- **One Postgres (+JSONB +pgvector), not a second database.** JSONB covers
-  schema-varying state, pgvector covers vector search, both in one already-present
-  DB — cheaper to operate, no cross-store consistency problem. A dedicated vector DB
-  or document store only wins at much larger scale.
+- **One Postgres + pgvector, not a second database.** Both vector use cases (fraud
+  screening and semantic search) live in the same DB already present — no extra
+  infrastructure, no cross-store consistency problem.
 - **Sockets on a VM, not Cloud Run.** On Cloud Run an open WebSocket keeps an
   instance active (billed, won't scale to zero), connections face a request timeout
   and best-effort affinity, and a queue-consuming worker wants to run continuously.
