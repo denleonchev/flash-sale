@@ -1,7 +1,5 @@
-// Prisma schema for the flash-sale platform (S-E0.2).
-// Source of truth for the data model is docs/technical-design.md §5. This card
-// ships only the minimal core: the sale (event) and the order. users, products,
-// order_events, fraud_flags and pgvector arrive in their own cards.
+// Prisma schema for the flash-sale platform.
+// Source of truth for the data model is docs/technical-design.md §5.
 
 generator client {
   provider = "prisma-client-js"
@@ -36,6 +34,8 @@ model Sale {
   startsAt    DateTime @map("starts_at")
   endsAt      DateTime @map("ends_at")
   createdAt   DateTime @default(now()) @map("created_at")
+  // FR-26: set by the embed-sale worker job (S-6.2); null until first job completes.
+  embedding   Unsupported("vector(384)")?
 
   orders Order[]
 

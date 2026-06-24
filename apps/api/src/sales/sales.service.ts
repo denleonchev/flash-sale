@@ -1,11 +1,15 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { SALE_STATES, type Sale, type CreateSale } from "@flash-sale/shared";
+import { EmbedSaleProducer } from "../embeds/embed-sale.producer.js";
 import { SalesRepository } from "./sales.repository.js";
 import { toSale } from "./sales.mapper.js";
 
 @Injectable()
 export class SalesService {
-  constructor(private readonly repo: SalesRepository) {}
+  constructor(
+    private readonly repo: SalesRepository,
+    private readonly embedProducer: EmbedSaleProducer,
+  ) {}
 
   async getSaleById(id: string): Promise<Sale | null> {
     const sale = await this.repo.findById(id);
@@ -20,6 +24,8 @@ export class SalesService {
       throw new BadRequestException("endsAt must be after startsAt");
     }
     const sale = await this.repo.create({ title: dto.title, description: dto.description, stockTotal: dto.stockTotal, priceCents: dto.priceCents, startsAt, endsAt });
+    // FR-26, NFR-14: fire-and-forget — embedding runs in the background, never blocks the response.
+    void this.embedProducer.enqueueEmbedSale(sale.id, sale.title, sale.description ?? undefined);
     return toSale(sale, sale.stockTotal, new Date());
   }
 

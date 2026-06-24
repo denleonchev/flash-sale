@@ -118,6 +118,16 @@ export interface CreateSale {
   priceCents: number; // price in smallest currency unit (cents); Stripe uses integers
 }
 
+// FR-26: background sale embedding queue (S-6.2).
+export const EMBED_SALE_QUEUE = "embed-sales";
+export const EMBED_SALE_JOB = "embed-sale";
+
+export interface EmbedSaleJobPayload {
+  saleId: string;
+  title: string;
+  description?: string;
+}
+
 /** Neither Zod nor class-validator live here — shared stays framework-agnostic. (FR-5) */
 export interface Sale {
   id: string;
