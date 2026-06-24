@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { SALE_STATES, type Sale, type CreateSale } from "@flash-sale/shared";
 import { EmbedSaleProducer } from "../embeds/embed-sale.producer.js";
+import { EmbeddingService } from "../embeds/embedding.service.js";
 import { SalesRepository } from "./sales.repository.js";
 import { toSale } from "./sales.mapper.js";
 
@@ -9,6 +10,7 @@ export class SalesService {
   constructor(
     private readonly repo: SalesRepository,
     private readonly embedProducer: EmbedSaleProducer,
+    private readonly embeddingService: EmbeddingService,
   ) {}
 
   async getSaleById(id: string): Promise<Sale | null> {
@@ -34,6 +36,13 @@ export class SalesService {
     if (!existing) throw new NotFoundException(`Sale ${id} not found`);
     const sale = await this.repo.endNow(id);
     return toSale(sale, existing.stockTotal - existing._count.orders, new Date());
+  }
+
+  async searchSales(query: string): Promise<Sale[]> {
+    const vector = await this.embeddingService.embed(query);
+    const sales = await this.repo.searchByEmbedding(vector);
+    const now = new Date();
+    return sales.map((s) => toSale(s, s.stockTotal - s._count.orders, now));
   }
 
   async getAllSales(): Promise<Sale[]> {

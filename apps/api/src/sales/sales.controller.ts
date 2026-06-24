@@ -1,4 +1,4 @@
-import { Body, Controller, Get, NotFoundException, Param, ParseUUIDPipe, Post, UseGuards } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, NotFoundException, Param, ParseUUIDPipe, Post, Query, UseGuards } from "@nestjs/common";
 import type { Sale } from "@flash-sale/shared";
 import { AdminGuard } from "../admin/admin.guard.js";
 import { SalesService } from "./sales.service.js";
@@ -35,6 +35,13 @@ export class SalesController {
   @Get()
   getAllSales(): Promise<Sale[]> {
     return this.service.getAllSales();
+  }
+
+  /** FR-26: semantic search via pgvector cosine distance. */
+  @Get("search")
+  searchSales(@Query("q") q: string): Promise<Sale[]> {
+    if (!q || q.trim().length === 0) throw new BadRequestException("q must be a non-empty string");
+    return this.service.searchSales(q.trim());
   }
 
   /** FR-5: returns the sale with derived state + remaining stock. */
