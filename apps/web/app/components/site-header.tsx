@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getSession } from "@/lib/session";
 
 export async function SiteHeader() {
@@ -6,6 +7,7 @@ export async function SiteHeader() {
 
   return (
     <header>
+      <Link href="/sales">Catalog</Link>{" "}·{" "}
       {session ? (
         <span>
           {session.user.name ?? session.user.email}
