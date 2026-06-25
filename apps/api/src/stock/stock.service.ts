@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { SalesRepository } from "../sales/sales.repository.js";
-import { StockRepository, stockKey } from "./stock.repository.js";
+import { StockRepository, getStockKey } from "./stock.repository.js";
 
 @Injectable()
 export class StockService {
@@ -17,7 +17,7 @@ export class StockService {
    * runs again. (FR-8, NFR-3)
    */
   async reserveStock(saleId: string, qty: number): Promise<boolean> {
-    const key = stockKey(saleId);
+    const key = getStockKey(saleId);
     let result = await this.stockRepo.decrementStock(key, qty);
 
     if (result === -1) {
@@ -29,7 +29,7 @@ export class StockService {
   }
 
   async releaseStock(saleId: string, qty: number): Promise<void> {
-    await this.stockRepo.incrementStock(stockKey(saleId), qty);
+    await this.stockRepo.incrementStock(getStockKey(saleId), qty);
   }
 
   private async initializeStock(saleId: string, key: string): Promise<void> {

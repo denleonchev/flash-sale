@@ -1,7 +1,8 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type { Redis } from "ioredis";
+import { getStockKey } from "@flash-sale/shared";
 
-export const stockKey = (saleId: string) => `stock:${saleId}`;
+export { getStockKey };
 
 /**
  * Atomic stock reservation via Lua.

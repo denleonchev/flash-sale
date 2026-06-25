@@ -42,6 +42,8 @@ export function getSaleRoomId(saleId: string): string {
   return `sale:${saleId}`;
 }
 
+export const getStockKey = (saleId: string) => `stock:${saleId}`;
+
 export function getUserRoomId(buyerId: string): string {
   return `user:${buyerId}`;
 }
