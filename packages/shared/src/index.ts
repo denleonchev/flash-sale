@@ -146,10 +146,12 @@ export type RiskLevel = (typeof RISK_LEVELS)[keyof typeof RISK_LEVELS];
 export const FRAUD_FLAG_STATUSES = { OPEN: "open", REVIEWED: "reviewed" } as const;
 export type FraudFlagStatus = (typeof FRAUD_FLAG_STATUSES)[keyof typeof FRAUD_FLAG_STATUSES];
 
-export interface FraudFlagDto {
+export interface FraudFlag {
   id: string;
   orderId: string;
   buyerId: string;
+  buyerEmail: string | null;
+  buyerName: string | null;
   saleId: string;
   risk: RiskLevel;
   reason: string;

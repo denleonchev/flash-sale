@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { FraudFlagDto } from "@flash-sale/shared";
+import type { FraudFlag } from "@flash-sale/shared";
 import { reviewFlagAction } from "./actions";
 
 const RISK_COLOR: Record<string, string> = {
@@ -10,7 +10,7 @@ const RISK_COLOR: Record<string, string> = {
   low: "green",
 };
 
-export function FraudFlagsTable({ flags }: { flags: FraudFlagDto[] }) {
+export function FraudFlagsTable({ flags }: { flags: FraudFlag[] }) {
   const router = useRouter();
   const [pending, setPending] = useState<string | null>(null);
 
@@ -40,7 +40,7 @@ export function FraudFlagsTable({ flags }: { flags: FraudFlagDto[] }) {
         {flags.map((f) => (
           <tr key={f.id}>
             <td style={{ color: RISK_COLOR[f.risk] }}>{f.risk}</td>
-            <td>{f.buyerId}</td>
+            <td>{f.buyerName ?? f.buyerEmail ?? f.buyerId}</td>
             <td>{f.saleId}</td>
             <td>{f.reason}</td>
             <td>{f.status}</td>

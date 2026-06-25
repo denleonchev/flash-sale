@@ -13,7 +13,6 @@ export class UsersRepository {
         // Always refresh email; update name only when provided (don't overwrite a
         // previously set name with null if the current login has no name claim).
         update: { email, ...(name !== undefined && { name }) },
-        select: { id: true },
       })
       .then(() => undefined);
   }

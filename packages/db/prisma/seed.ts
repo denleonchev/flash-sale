@@ -21,9 +21,11 @@ const DAY = 24 * 60 * 60 * 1000;
 const HOUR = 60 * 60 * 1000;
 
 async function seed(): Promise<void> {
-  // Clean slate so the seed is idempotent.
+  // Clean slate so the seed is idempotent. FK order: fraudFlag → order → sale; users last.
+  await prisma.fraudFlag.deleteMany();
   await prisma.order.deleteMany();
   await prisma.sale.deleteMany();
+  await prisma.user.deleteMany();
 
   const sales = await prisma.sale.createManyAndReturn({
     data: [

@@ -3,7 +3,7 @@ import { apiFetch } from "@/lib/api";
 import { getSession } from "@/lib/session";
 import { mintAdminTicket } from "@/lib/admin-ticket";
 import { FraudFlagsSchema, FraudFlagSchema } from "@/lib/schemas/fraud-flag.schema";
-import type { FraudFlagDto } from "@flash-sale/shared";
+import type { FraudFlag } from "@flash-sale/shared";
 
 async function assertAccess(): Promise<void> {
   const session = await getSession();
@@ -12,7 +12,7 @@ async function assertAccess(): Promise<void> {
   }
 }
 
-export async function listFraudFlagsAction(status?: string): Promise<FraudFlagDto[]> {
+export async function listFraudFlagsAction(status?: string): Promise<FraudFlag[]> {
   await assertAccess();
   const url = status ? `/admin/fraud-flags?status=${status}` : "/admin/fraud-flags";
   try {
