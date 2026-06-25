@@ -76,6 +76,11 @@ enum RiskLevel {
   high
 }
 
+enum FraudFlagStatus {
+  open
+  reviewed
+}
+
 /// FR-27: результат fraud screening. embedding — вектор текстового паттерна,
 /// используется как база прецедентов для RAG в следующих проверках.
 model FraudFlag {
@@ -83,11 +88,13 @@ model FraudFlag {
   orderId   String    @unique @map("order_id")
   buyerId   String    @map("buyer_id")
   saleId    String    @map("sale_id")
-  risk      RiskLevel
-  reason    String
-  pattern   String
-  embedding Unsupported("vector(384)")?
-  createdAt DateTime  @default(now()) @map("created_at")
+  risk       RiskLevel
+  reason     String
+  pattern    String
+  embedding  Unsupported("vector(384)")?
+  status     FraudFlagStatus @default(open)
+  createdAt  DateTime        @default(now()) @map("created_at")
+  reviewedAt DateTime?       @map("reviewed_at")
 
   order Order @relation(fields: [orderId], references: [id])
   sale  Sale  @relation(fields: [saleId], references: [id])

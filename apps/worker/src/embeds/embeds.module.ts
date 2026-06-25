@@ -8,5 +8,6 @@ import { SalesRepository } from "./sales.repository.js";
 @Module({
   imports: [BullModule.registerQueue({ name: EMBED_SALE_QUEUE })],
   providers: [EmbedSaleProcessor, EmbeddingService, SalesRepository],
+  exports: [EmbeddingService],
 })
 export class EmbedsModule {}

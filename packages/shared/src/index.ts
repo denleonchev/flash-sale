@@ -141,6 +141,22 @@ export interface FraudScreeningJobPayload {
 export const RISK_LEVELS = { LOW: "low", MEDIUM: "medium", HIGH: "high" } as const;
 export type RiskLevel = (typeof RISK_LEVELS)[keyof typeof RISK_LEVELS];
 
+export const FRAUD_FLAG_STATUSES = { OPEN: "open", REVIEWED: "reviewed" } as const;
+export type FraudFlagStatus = (typeof FRAUD_FLAG_STATUSES)[keyof typeof FRAUD_FLAG_STATUSES];
+
+export interface FraudFlagDto {
+  id: string;
+  orderId: string;
+  buyerId: string;
+  saleId: string;
+  risk: RiskLevel;
+  reason: string;
+  pattern: string;
+  status: FraudFlagStatus;
+  createdAt: string;
+  reviewedAt: string | null;
+}
+
 /** Neither Zod nor class-validator live here — shared stays framework-agnostic. (FR-5) */
 export interface Sale {
   id: string;

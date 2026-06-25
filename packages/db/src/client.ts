@@ -2,7 +2,7 @@ import { PrismaClient, Prisma } from "../generated/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 
 export { PrismaClient, OrderStatus } from "../generated/client";
-export type { Sale, Order } from "../generated/client";
+export type { Sale, Order, FraudFlag } from "../generated/client";
 
 /**
  * Creates a PrismaClient with the pg driver adapter. URL from DATABASE_URL env var.
