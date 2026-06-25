@@ -1,5 +1,13 @@
 import { Injectable, InternalServerErrorException } from "@nestjs/common";
 
+// Thrown on HTTP 429 so BullMQ retries with backoff instead of silently failing.
+export class GroqRateLimitError extends Error {
+  constructor() {
+    super("Groq rate limit (429)");
+    this.name = "GroqRateLimitError";
+  }
+}
+
 interface ChatMessage {
   role: "system" | "user" | "assistant";
   content: string;
@@ -35,9 +43,8 @@ export class GroqService {
       }),
     });
 
-    if (!res.ok) {
-      throw new InternalServerErrorException(`Groq API error: ${res.status}`);
-    }
+    if (res.status === 429) throw new GroqRateLimitError();
+    if (!res.ok) throw new InternalServerErrorException(`Groq API error: ${res.status}`);
 
     const data = (await res.json()) as GroqResponse;
     return data.choices[0]?.message?.content ?? "";

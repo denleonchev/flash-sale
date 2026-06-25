@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { RISK_LEVELS, type FraudScreeningJobPayload, type RiskLevel } from "@flash-sale/shared";
 import { FraudFlagsRepository } from "./fraud-flags.repository.js";
-import { GroqService } from "../ai/groq.service.js";
+import { GroqService, GroqRateLimitError } from "../ai/groq.service.js";
 import { EmbeddingService } from "../embeds/embedding.service.js";
 
 const SYSTEM_PROMPT = `You are a fraud detection AI for a flash-sale platform.
@@ -67,8 +67,9 @@ export class FraudScreeningService {
       }
       reason = parsed.reason ?? "";
     } catch (err) {
-      // FR-27: fail-safe — a Groq error must never block or surface to the buyer.
-      this.logger.warn(`Fraud screening parse error for order ${orderId}: ${String(err)}, defaulting to low`);
+      if (err instanceof GroqRateLimitError) throw err; // BullMQ retries with backoff
+      // FR-27: fail-safe — any other Groq error must not block or surface to the buyer.
+      this.logger.warn(`Fraud screening error for order ${orderId}: ${String(err)}, defaulting to low`);
     }
 
     if (risk === RISK_LEVELS.MEDIUM || risk === RISK_LEVELS.HIGH) {
