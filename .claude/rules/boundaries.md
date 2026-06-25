@@ -7,8 +7,10 @@ The rule of thumb: **changes state or schema → the human runs it. Pure local c
 - Writing, editing, and deleting source files in the repo.
 - Formatting and linting.
 - Local type-checking and local builds that do not touch external services.
-- Generating code, Prisma schema edits, migration files (writing them — not
-  applying them).
+- Generating code, Prisma schema edits (`schema.prisma` only).
+  **Never hand-write migration SQL files** — Prisma generates them via
+  `prisma migrate dev --name <x>` (human runs this). Checksums are stored in
+  `_prisma_migrations`; a hand-written file will diverge and break `migrate deploy`.
 
 ## The agent MUST NOT run — propose, and let the human run
 - **Database migrations** (`prisma migrate ...`, `prisma db push`, resets).
