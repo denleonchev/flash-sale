@@ -6,6 +6,7 @@ import { StockReleaseService } from "./stock-release.service.js";
 import { StockPublisher } from "../realtime/stock.publisher.js";
 import { OrderResultPublisher } from "../realtime/order-result.publisher.js";
 import { PaymentGateway } from "../payment/payment.gateway.js";
+import { FraudScreeningProducer } from "../fraud/fraud-screening.producer.js";
 
 /**
  * Concurrency correctness (§4, .claude/rules/concurrency.md):
@@ -38,10 +39,14 @@ export class OrderFinalizer {
     private readonly orderResultPublisher: OrderResultPublisher,
     private readonly stockReleaseService: StockReleaseService,
     @Inject(PaymentGateway) private readonly payment: PaymentGateway,
+    private readonly fraudProducer: FraudScreeningProducer,
   ) {}
 
   async finalizeOrder(job: OrderJobPayload): Promise<void> {
     const { status, orderId, remainingStock } = await this.resolveOrder(job);
+
+    // FR-27: fire-and-forget — fraud check is off the purchase path.
+    void this.fraudProducer.enqueue({ orderId, buyerId: job.buyerId, saleId: job.saleId });
 
     await this.stockPublisher.publishStock({
       saleId: job.saleId,

@@ -37,7 +37,8 @@ model Sale {
   // FR-26: set by the embed-sale worker job (S-6.2); null until first job completes.
   embedding   Unsupported("vector(384)")?
 
-  orders Order[]
+  orders     Order[]
+  fraudFlags FraudFlag[]
 
   @@map("sales")
 }
@@ -63,7 +64,33 @@ model Order {
   // FR-12 [Ext]: Stripe PaymentIntent ID; null when using the fake payment provider.
   paymentRef     String?     @map("payment_ref")
 
-  sale Sale @relation(fields: [saleId], references: [id])
+  sale      Sale       @relation(fields: [saleId], references: [id])
+  fraudFlag FraudFlag?
 
   @@map("orders")
+}
+
+enum RiskLevel {
+  low
+  medium
+  high
+}
+
+/// FR-27: результат fraud screening. embedding — вектор текстового паттерна,
+/// используется как база прецедентов для RAG в следующих проверках.
+model FraudFlag {
+  id        String    @id @default(uuid())
+  orderId   String    @unique @map("order_id")
+  buyerId   String    @map("buyer_id")
+  saleId    String    @map("sale_id")
+  risk      RiskLevel
+  reason    String
+  pattern   String
+  embedding Unsupported("vector(384)")?
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  order Order @relation(fields: [orderId], references: [id])
+  sale  Sale  @relation(fields: [saleId], references: [id])
+
+  @@map("fraud_flags")
 }

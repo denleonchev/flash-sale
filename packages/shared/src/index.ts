@@ -128,6 +128,19 @@ export interface EmbedSaleJobPayload {
   description?: string;
 }
 
+// FR-27: fraud screening queue (S-6.4 / S-6.5).
+export const FRAUD_SCREENING_QUEUE = "fraud-screening";
+export const FRAUD_SCREENING_JOB = "screen-order-fraud";
+
+export interface FraudScreeningJobPayload {
+  orderId: string;
+  buyerId: string;
+  saleId: string;
+}
+
+export const RISK_LEVELS = { LOW: "low", MEDIUM: "medium", HIGH: "high" } as const;
+export type RiskLevel = (typeof RISK_LEVELS)[keyof typeof RISK_LEVELS];
+
 /** Neither Zod nor class-validator live here — shared stays framework-agnostic. (FR-5) */
 export interface Sale {
   id: string;
