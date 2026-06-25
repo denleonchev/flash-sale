@@ -10,6 +10,7 @@ function toDto(f: FraudFlagWithBuyer): FraudFlag {
     buyerEmail: f.buyerEmail,
     buyerName: f.buyerName,
     saleId: f.saleId,
+    saleTitle: f.saleTitle,
     risk: f.risk as FraudFlag["risk"],
     reason: f.reason,
     pattern: f.pattern,

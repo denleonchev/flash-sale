@@ -41,7 +41,7 @@ export function FraudFlagsTable({ flags }: { flags: FraudFlag[] }) {
           <tr key={f.id}>
             <td style={{ color: RISK_COLOR[f.risk] }}>{f.risk}</td>
             <td>{f.buyerName ?? f.buyerEmail ?? f.buyerId}</td>
-            <td>{f.saleId}</td>
+            <td>{f.saleTitle}</td>
             <td>{f.reason}</td>
             <td>{f.status}</td>
             <td>{f.createdAt.slice(0, 19).replace("T", " ")} UTC</td>

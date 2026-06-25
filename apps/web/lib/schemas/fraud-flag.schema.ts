@@ -8,6 +8,7 @@ export const FraudFlagSchema = z.object({
   buyerEmail: z.string().nullable(),
   buyerName: z.string().nullable(),
   saleId: z.string(),
+  saleTitle: z.string(),
   risk: z.enum(["low", "medium", "high"]),
   reason: z.string(),
   pattern: z.string(),

@@ -6,6 +6,7 @@ import { PrismaService } from "../db/prisma.service.js";
 export type FraudFlagWithBuyer = FraudFlag & {
   buyerEmail: string | null;
   buyerName: string | null;
+  saleTitle: string;
 };
 
 @Injectable()
@@ -16,6 +17,7 @@ export class FraudFlagsRepository {
     const flags = await this.prisma.db.fraudFlag.findMany({
       where: status ? { status } : undefined,
       orderBy: { createdAt: "desc" },
+      include: { sale: { select: { title: true } } },
     });
 
     const buyerIds = [...new Set(flags.map((f) => f.buyerId))];
@@ -27,7 +29,7 @@ export class FraudFlagsRepository {
 
     return flags.map((f) => {
       const user = userMap.get(f.buyerId) ?? null;
-      return { ...f, buyerEmail: user?.email ?? null, buyerName: user?.name ?? null };
+      return { ...f, buyerEmail: user?.email ?? null, buyerName: user?.name ?? null, saleTitle: f.sale.title };
     });
   }
 
@@ -44,10 +46,16 @@ export class FraudFlagsRepository {
   }
 
   private async enrichWithBuyer(flag: FraudFlag): Promise<FraudFlagWithBuyer> {
-    const user = await this.prisma.db.user.findUnique({
-      where: { auth0Sub: flag.buyerId },
-      select: { email: true, name: true },
-    });
-    return { ...flag, buyerEmail: user?.email ?? null, buyerName: user?.name ?? null };
+    const [user, sale] = await Promise.all([
+      this.prisma.db.user.findUnique({
+        where: { auth0Sub: flag.buyerId },
+        select: { email: true, name: true },
+      }),
+      this.prisma.db.sale.findUniqueOrThrow({
+        where: { id: flag.saleId },
+        select: { title: true },
+      }),
+    ]);
+    return { ...flag, buyerEmail: user?.email ?? null, buyerName: user?.name ?? null, saleTitle: sale.title };
   }
 }

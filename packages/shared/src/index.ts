@@ -153,6 +153,7 @@ export interface FraudFlag {
   buyerEmail: string | null;
   buyerName: string | null;
   saleId: string;
+  saleTitle: string;
   risk: RiskLevel;
   reason: string;
   pattern: string;
