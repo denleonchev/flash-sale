@@ -7,6 +7,7 @@ import {
 } from "@flash-sale/shared";
 
 import { SalesService } from "../sales/sales.service.js";
+import { UsersService } from "../users/users.service.js";
 import { OrderProducer } from "./order.producer.js";
 import { OrderResultPublisher } from "./order-result.publisher.js";
 import { OrdersRepository } from "./orders.repository.js";
@@ -33,9 +34,11 @@ export class OrdersService {
     private readonly stockService: StockService,
     private readonly salesService: SalesService,
     private readonly ordersRepository: OrdersRepository,
+    private readonly usersService: UsersService,
   ) {}
 
   async buy(dto: CreateOrderDto): Promise<BuyResult> {
+    await this.usersService.upsertBuyer(dto.buyerId, dto.email, dto.name);
     const sale = await this.assertSaleLive(dto.saleId);
 
     // Non-failed order (in_progress/confirmed/sold_out) is a permanent block.

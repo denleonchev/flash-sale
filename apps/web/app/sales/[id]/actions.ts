@@ -32,6 +32,8 @@ export async function buyAction(saleId: string, paymentMethodId?: string): Promi
       body: JSON.stringify({
         saleId,
         buyerId,
+        email: session.user.email,
+        ...(session.user.name !== undefined && { name: session.user.name }),
         quantity: 1,
         ...(paymentMethodId !== undefined && { paymentMethodId }),
       }),

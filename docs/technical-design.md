@@ -169,10 +169,16 @@ durability — and together close the oversell gap. (NFR-1)
 
 ## 5. Data Model
 
-Postgres via **Prisma**. Two core tables; no separate users or products tables.
-pgvector serves two purposes: fraud screening (order signal embeddings) and
-semantic search (sale title/description embeddings).
+Postgres via **Prisma**. No separate products table; user identity is offloaded to
+Auth0 with a thin `users` mirror for display and email. pgvector serves two
+purposes: fraud screening (order signal embeddings) and semantic search
+(sale title/description embeddings).
 
+- **users** — `auth0_sub` (base64url-encoded Auth0 `sub`, PK), `email`,
+  `name` (nullable — not guaranteed by all Auth0 providers), `created_at`. Populated
+  via upsert when a buyer places their first order. Auth0 remains the identity source
+  of truth; this table caches only what the app needs locally (display name for fraud
+  flags, email address for transactional email FR-23).
 - **sales** — `id`, `title`, `description`, `stock_total`, `price_cents`,
   `starts_at`, `ends_at`, `created_at`, `embedding vector` _(Ext)_. Product details
   live directly on the sale row — there is no separate products table. The embedding
@@ -186,8 +192,9 @@ semantic search (sale title/description embeddings).
   terminal status. The unique key enforces idempotency at the DB level too.
   `acknowledged_at` is set when the buyer confirms receipt of the result; subsequent
   reconnect snapshots are suppressed once it is set. (FR-14, FR-19)
-- **fraud_flags** _(Ext, not yet built)_ — `id`, `order_id`, `risk`, `reason`,
-  `status` (open | reviewed). (FR-22)
+- **fraud_flags** _(Ext)_ — `id`, `order_id`, `buyer_id`, `sale_id`, `risk`,
+  `reason`, `pattern`, `embedding vector`, `status` (open | reviewed),
+  `created_at`, `reviewed_at`. (FR-22)
 
 Authoritative stock lives in Postgres (`stock_total` minus confirmed orders). The
 Redis counter is a fast working copy for the hot path; the database is the source of

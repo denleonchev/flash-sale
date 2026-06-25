@@ -43,6 +43,17 @@ model Sale {
   @@map("sales")
 }
 
+/// FR-6 / FR-23: thin mirror of Auth0 identity. Populated via upsert on first
+/// purchase; Auth0 remains the source of truth for authentication.
+model User {
+  auth0Sub  String   @id @map("auth0_sub")
+  email     String
+  name      String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("users")
+}
+
 /// A buyer's order for a sale.
 ///
 /// Concurrency note (FR-14 / NFR-2): `idempotency_key` is UNIQUE — the DB-level
