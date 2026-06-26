@@ -35,7 +35,14 @@ export class SalesRepository {
     });
   }
 
-  create(data: { title: string; description?: string; stockTotal: number; priceCents: number; startsAt: Date; endsAt: Date }): Promise<Sale> {
+  create(data: {
+    title: string;
+    description?: string;
+    stockTotal: number;
+    priceCents: number;
+    startsAt: Date;
+    endsAt: Date;
+  }): Promise<Sale> {
     return this.prisma.db.sale.create({ data });
   }
 
@@ -44,7 +51,10 @@ export class SalesRepository {
   }
 
   // FR-26: cosine distance (<=>); returns only sales with an embedding; sorted by relevance.
-  async searchByEmbedding(vector: number[], limit = 10): Promise<Array<Sale & { _count: { orders: number } }>> {
+  async searchByEmbedding(
+    vector: number[],
+    limit = 10,
+  ): Promise<Array<Sale & { _count: { orders: number } }>> {
     const vectorStr = `[${vector.join(",")}]`;
     const rows = await this.prisma.db.$queryRaw<RawSaleRow[]>`
       SELECT s.id, s.title, s.description, s.stock_total, s.price_cents, s.starts_at, s.ends_at, s.created_at,

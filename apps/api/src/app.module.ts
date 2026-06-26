@@ -12,6 +12,14 @@ import { FraudFlagsModule } from "./fraud-flags/fraud-flags.module.js";
  * DB (S-1.1b: DbModule global), and Sales feature (GET /sales/:id, FR-5).
  */
 @Module({
-  imports: [DbModule, HealthModule, QueueModule, OrdersModule, RealtimeModule, SalesModule, FraudFlagsModule],
+  imports: [
+    DbModule,
+    HealthModule,
+    QueueModule,
+    OrdersModule,
+    RealtimeModule,
+    SalesModule,
+    FraudFlagsModule,
+  ],
 })
 export class AppModule {}

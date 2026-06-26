@@ -11,12 +11,7 @@ import { OrdersService } from "./orders.service.js";
 import { OrdersRepository } from "./orders.repository.js";
 
 @Module({
-  imports: [
-    BullModule.registerQueue({ name: ORDER_QUEUE }),
-    SalesModule,
-    StockModule,
-    UsersModule,
-  ],
+  imports: [BullModule.registerQueue({ name: ORDER_QUEUE }), SalesModule, StockModule, UsersModule],
   controllers: [OrdersController],
   providers: [OrdersService, OrderProducer, OrderResultPublisher, OrdersRepository],
   exports: [OrdersService],

@@ -5,12 +5,13 @@ produce concurrency code that looks correct, compiles, passes a casual manual te
 and is still wrong under real concurrent load. Treat it accordingly.
 
 **The design is canonical in `docs/technical-design.md` §4 (Purchase Flow).** This
-file does not restate the mechanism — read §4 for *how* it works and *why* it is
-correct. This file is the *operating rule* for working on that code.
+file does not restate the mechanism — read §4 for _how_ it works and _why_ it is
+correct. This file is the _operating rule_ for working on that code.
 
 ## Hard rules
+
 - Any code touching **stock reservation, the order queue, or stock confirmation**
-  must be accompanied by a **plain-language explanation** of *why* it is correct
+  must be accompanied by a **plain-language explanation** of _why_ it is correct
   under concurrent access — which operation is atomic, what serialises access, what
   happens when two buyers hit the last unit at the same time.
 - Never describe such code as "done" or "working" without that reasoning. The human
@@ -19,4 +20,5 @@ correct. This file is the *operating rule* for working on that code.
   flagging it and explaining the trade-off versus the documented design.
 
 ## When unsure
+
 Stop and ask. A wrong guess here defeats the whole point of the project.

@@ -3,6 +3,7 @@
 How to add a new background job type.
 
 ## Steps
+
 1. Define the **job payload type** in `packages/shared`. Both the producer (api or
    worker) and the consumer (worker) import it — never redefine it locally.
 2. Producer: enqueue with a **stable job id** when idempotency matters (e.g. the
@@ -16,5 +17,6 @@ How to add a new background job type.
 5. Add a test for the handler's core behaviour.
 
 ## Cautions
+
 - Anything affecting stock/orders falls under `.claude/rules/concurrency.md` —
   explain correctness, let the human verify.

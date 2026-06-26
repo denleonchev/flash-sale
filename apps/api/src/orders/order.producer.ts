@@ -15,9 +15,7 @@ import { Queue } from "bullmq";
 export class OrderProducer {
   private readonly logger = new Logger(OrderProducer.name);
 
-  constructor(
-    @InjectQueue(ORDER_QUEUE) private readonly queue: Queue<OrderJobPayload>,
-  ) {}
+  constructor(@InjectQueue(ORDER_QUEUE) private readonly queue: Queue<OrderJobPayload>) {}
 
   async isEnqueued(idempotencyKey: string): Promise<boolean> {
     return (await this.queue.getJob(idempotencyKey)) !== undefined;
@@ -31,7 +29,14 @@ export class OrderProducer {
     priceCents: number,
     paymentMethodId?: string,
   ): Promise<void> {
-    const payload: OrderJobPayload = { saleId, buyerId, idempotencyKey, quantity, priceCents, paymentMethodId };
+    const payload: OrderJobPayload = {
+      saleId,
+      buyerId,
+      idempotencyKey,
+      quantity,
+      priceCents,
+      paymentMethodId,
+    };
     const job = await this.queue.add(ORDER_JOB, payload, {
       jobId: idempotencyKey,
       removeOnComplete: true,

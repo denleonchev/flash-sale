@@ -9,11 +9,7 @@ import { FraudScreeningService } from "./fraud-screening.service.js";
 import { FraudScreeningProcessor } from "./fraud-screening.processor.js";
 
 @Module({
-  imports: [
-    BullModule.registerQueue({ name: FRAUD_SCREENING_QUEUE }),
-    AiModule,
-    EmbedsModule,
-  ],
+  imports: [BullModule.registerQueue({ name: FRAUD_SCREENING_QUEUE }), AiModule, EmbedsModule],
   providers: [
     FraudFlagsRepository,
     FraudScreeningProducer,

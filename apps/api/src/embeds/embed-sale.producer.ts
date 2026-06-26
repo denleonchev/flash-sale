@@ -7,9 +7,7 @@ import { Queue } from "bullmq";
 export class EmbedSaleProducer {
   private readonly logger = new Logger(EmbedSaleProducer.name);
 
-  constructor(
-    @InjectQueue(EMBED_SALE_QUEUE) private readonly queue: Queue<EmbedSaleJobPayload>,
-  ) {}
+  constructor(@InjectQueue(EMBED_SALE_QUEUE) private readonly queue: Queue<EmbedSaleJobPayload>) {}
 
   async enqueueEmbedSale(saleId: string, title: string, description?: string): Promise<void> {
     const payload: EmbedSaleJobPayload = { saleId, title, description };

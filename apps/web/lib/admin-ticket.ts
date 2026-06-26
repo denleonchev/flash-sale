@@ -30,7 +30,9 @@ function decodeRoles(session: Session): string[] {
         Buffer.from(idToken.split(".")[1], "base64url").toString(),
       ) as Record<string, unknown>;
       return (payload[ROLES_CLAIM] as string[]) ?? [];
-    } catch { /* fall through */ }
+    } catch {
+      /* fall through */
+    }
   }
   return (session.user[ROLES_CLAIM] as string[]) ?? [];
 }

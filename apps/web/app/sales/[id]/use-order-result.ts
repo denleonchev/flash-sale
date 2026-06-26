@@ -1,11 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  ORDER_STATUSES,
-  SOCKET_EVENTS,
-  type OrderStatus,
-} from "@flash-sale/shared";
+import { ORDER_STATUSES, SOCKET_EVENTS, type OrderStatus } from "@flash-sale/shared";
 import { getSocket } from "@/lib/socket";
 import { OrderResultUpdatedSchema } from "@/lib/schemas/order-result-updated.schema";
 

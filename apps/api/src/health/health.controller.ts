@@ -1,9 +1,5 @@
 import { Controller, Get } from "@nestjs/common";
-import {
-  HealthCheck,
-  HealthCheckResult,
-  HealthCheckService,
-} from "@nestjs/terminus";
+import { HealthCheck, HealthCheckResult, HealthCheckService } from "@nestjs/terminus";
 
 /**
  * Liveness endpoint so the api can report healthy under docker-compose (S-E0.3).

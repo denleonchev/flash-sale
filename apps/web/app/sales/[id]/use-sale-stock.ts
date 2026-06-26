@@ -16,8 +16,7 @@ export function useSaleStock(saleId: string, initialStock: number): number {
   useEffect(() => {
     const socket = getSocket();
 
-    const subscribeToSaleStock = () =>
-      socket.emit(SOCKET_EVENTS.SALE_STOCK_SUBSCRIBE, { saleId });
+    const subscribeToSaleStock = () => socket.emit(SOCKET_EVENTS.SALE_STOCK_SUBSCRIBE, { saleId });
 
     const onSaleStockUpdated = (raw: unknown) => {
       const parsed = SaleStockUpdatedSchema.safeParse(raw);

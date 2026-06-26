@@ -25,7 +25,14 @@ export class SalesService {
     if (endsAt <= startsAt) {
       throw new BadRequestException("endsAt must be after startsAt");
     }
-    const sale = await this.repo.create({ title: dto.title, description: dto.description, stockTotal: dto.stockTotal, priceCents: dto.priceCents, startsAt, endsAt });
+    const sale = await this.repo.create({
+      title: dto.title,
+      description: dto.description,
+      stockTotal: dto.stockTotal,
+      priceCents: dto.priceCents,
+      startsAt,
+      endsAt,
+    });
     // FR-26, NFR-14: fire-and-forget — embedding runs in the background, never blocks the response.
     void this.embedProducer.enqueueEmbedSale(sale.id, sale.title, sale.description ?? undefined);
     return toSale(sale, sale.stockTotal, new Date());

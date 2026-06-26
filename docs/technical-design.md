@@ -150,7 +150,7 @@ rather than restating the mechanism. (FR-8 to FR-16, NFR-1, NFR-3)
    success/failure. Optional (Ext): a real provider in test mode driving the same
    outcome. (FR-11, FR-12)
 8. **worker transitions the row in a Postgres transaction** (guarded by `WHERE
-   status = in_progress` so a re-delivered job acts at most once):
+status = in_progress` so a re-delivered job acts at most once):
    - **success** → a guarded write (sale-row lock + `confirmed < stock_total`) sets
      `confirmed`, else `sold_out`. The lock is the final authority on stock, so the
      DB can never exceed stock_total even if Redis and the DB disagree. (FR-13, FR-15)
@@ -186,8 +186,8 @@ purposes: fraud screening (order signal embeddings) and semantic search
   search. State (upcoming/live/ended) is derived, not
   stored. (FR-1, FR-2)
 - **orders** — `id`, `sale_id`, `buyer_id` (base64url-encoded Auth0 `sub`),
-  `idempotency_key` (unique per buyer+sale), `status` (in_progress | confirmed |
-  sold_out | failed), `payment_ref` _(Ext)_, `acknowledged_at`, `created_at`. api
+  `idempotency_key` (unique per buyer+sale), `status` (in*progress | confirmed |
+  sold_out | failed), `payment_ref` *(Ext)\_, `acknowledged_at`, `created_at`. api
   writes `in_progress` before enqueue; the worker transitions it to exactly one
   terminal status. The unique key enforces idempotency at the DB level too.
   `acknowledged_at` is set when the buyer confirms receipt of the result; subsequent
@@ -229,7 +229,6 @@ the core flow works fully without them. (NFR-13)
   `description`, stored as a pgvector column on the sale row. Run lazily in the
   background, one at a time, so the VM is never blocked. Powers semantic search
   (FR-26). (NFR-14)
-
 
 ---
 

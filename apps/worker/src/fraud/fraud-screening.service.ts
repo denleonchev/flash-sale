@@ -34,7 +34,9 @@ export class FraudScreeningService {
 
     const historicalContext = similar.length
       ? "\n\nSimilar cases from this platform's history:\n" +
-        similar.map((f, i) => `${i + 1}. pattern: ${f.pattern} | risk: ${f.risk} | reason: ${f.reason}`).join("\n")
+        similar
+          .map((f, i) => `${i + 1}. pattern: ${f.pattern} | risk: ${f.risk} | reason: ${f.reason}`)
+          .join("\n")
       : "";
 
     const userMsg = `Current buyer pattern: ${pattern}\n\n${FRAUD_FEW_SHOT_EXAMPLES}${historicalContext}`;
@@ -62,11 +64,21 @@ export class FraudScreeningService {
     } catch (err) {
       if (err instanceof GroqRateLimitError) throw err; // BullMQ retries with backoff
       // FR-27: fail-safe — any other Groq error must not block or surface to the buyer.
-      this.logger.warn(`Fraud screening error for order ${orderId}: ${String(err)}, defaulting to low`);
+      this.logger.warn(
+        `Fraud screening error for order ${orderId}: ${String(err)}, defaulting to low`,
+      );
     }
 
     if (risk === RISK_LEVELS.MEDIUM || risk === RISK_LEVELS.HIGH) {
-      await this.repo.createFlag({ orderId, buyerId, saleId, risk, reason, pattern, embedding: vector });
+      await this.repo.createFlag({
+        orderId,
+        buyerId,
+        saleId,
+        risk,
+        reason,
+        pattern,
+        embedding: vector,
+      });
     }
   }
 }

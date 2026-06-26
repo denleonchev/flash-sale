@@ -21,21 +21,18 @@ export const ORDER_STATUSES = {
 export type OrderStatus = (typeof ORDER_STATUSES)[keyof typeof ORDER_STATUSES];
 
 /** Tuple form for `z.enum(ORDER_STATUS_VALUES)` and Prisma `{ in: [...] }`. */
-export const ORDER_STATUS_VALUES = Object.values(ORDER_STATUSES) as [
-  OrderStatus,
-  ...OrderStatus[],
-];
+export const ORDER_STATUS_VALUES = Object.values(ORDER_STATUSES) as [OrderStatus, ...OrderStatus[]];
 
 /** Shared so producer (api) and consumer (worker) cannot drift apart. (NFR-11) */
 export const ORDER_QUEUE = "orders";
 export const ORDER_JOB = "process-order";
 
 export const SOCKET_EVENTS = {
-  SALE_STOCK_SUBSCRIBE: "sale:stock:subscribe",    // client → server (FR-17, FR-19)
+  SALE_STOCK_SUBSCRIBE: "sale:stock:subscribe", // client → server (FR-17, FR-19)
   ORDER_RESULT_SUBSCRIBE: "order:result:subscribe", // client → server (FR-18, FR-19)
   ORDER_RESULT_UNSUBSCRIBE: "order:result:unsubscribe", // client → server (FR-19)
-  SALE_STOCK_UPDATED: "sale:stock:updated",         // server → sale room (FR-17)
-  ORDER_RESULT_UPDATED: "order:result:updated",     // server → buyer room (FR-18)
+  SALE_STOCK_UPDATED: "sale:stock:updated", // server → sale room (FR-17)
+  ORDER_RESULT_UPDATED: "order:result:updated", // server → buyer room (FR-18)
 } as const;
 
 export function getSaleRoomId(saleId: string): string {
@@ -116,7 +113,7 @@ export interface CreateSale {
   description?: string;
   stockTotal: number;
   startsAt: string; // ISO-8601
-  endsAt: string;   // ISO-8601
+  endsAt: string; // ISO-8601
   priceCents: number; // price in smallest currency unit (cents); Stripe uses integers
 }
 

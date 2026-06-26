@@ -29,7 +29,12 @@ export class FraudFlagsRepository {
 
     return flags.map((f) => {
       const user = userMap.get(f.buyerId) ?? null;
-      return { ...f, buyerEmail: user?.email ?? null, buyerName: user?.name ?? null, saleTitle: f.sale.title };
+      return {
+        ...f,
+        buyerEmail: user?.email ?? null,
+        buyerName: user?.name ?? null,
+        saleTitle: f.sale.title,
+      };
     });
   }
 
@@ -56,6 +61,11 @@ export class FraudFlagsRepository {
         select: { title: true },
       }),
     ]);
-    return { ...flag, buyerEmail: user?.email ?? null, buyerName: user?.name ?? null, saleTitle: sale.title };
+    return {
+      ...flag,
+      buyerEmail: user?.email ?? null,
+      buyerName: user?.name ?? null,
+      saleTitle: sale.title,
+    };
   }
 }

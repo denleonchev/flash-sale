@@ -11,7 +11,11 @@ export class StripePaymentService extends PaymentGateway {
     this.stripe = new Stripe(process.env["STRIPE_SECRET_KEY"]!);
   }
 
-  async charge(idempotencyKey: string, paymentMethodId?: string, priceCents = 100): Promise<PaymentResult> {
+  async charge(
+    idempotencyKey: string,
+    paymentMethodId?: string,
+    priceCents = 100,
+  ): Promise<PaymentResult> {
     // Fallback allows testing without a frontend via STRIPE_PAYMENT_METHOD env var.
     const method = paymentMethodId ?? process.env["STRIPE_PAYMENT_METHOD"] ?? "pm_card_visa";
     try {

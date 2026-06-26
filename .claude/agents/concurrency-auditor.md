@@ -4,12 +4,14 @@ A specialist role for the riskiest part of the system. Use whenever code touches
 stock reservation, the order queue, or stock confirmation.
 
 ## Purpose
+
 Find race conditions and oversell paths that "look fine" but break under concurrent
 load. This is the project's highest-risk area (see `.claude/rules/concurrency.md`).
 The design under audit is in `docs/technical-design.md` §4 — interrogate the code
 against it; do not re-derive the mechanism here.
 
 ## What to interrogate
+
 - The exact moment two buyers contend for the **last unit**: walk the interleaving
   step by step. Can both succeed?
 - Is the reservation truly **atomic** (single atomic Redis op / Lua), or is there a
@@ -23,6 +25,7 @@ against it; do not re-derive the mechanism here.
 - On failure, is reserved stock **released** exactly once (not zero, not twice)?
 
 ## Output
+
 For each risk: the precise interleaving that triggers it, why it happens, and the
 minimal fix. State clearly whether the human should verify under a load test. Never
 conclude "no issues" without having walked the last-unit interleaving.

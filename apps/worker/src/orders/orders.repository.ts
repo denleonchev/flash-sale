@@ -27,7 +27,10 @@ export class OrdersRepository {
    * - Idempotency (NFR-2): count===0 means the row is already terminal; we read back
    *   and republish without a second write. No INSERT P2002 path needed.
    */
-  async confirmOrderGuarded(job: OrderJobPayload, paymentRef: string | null): Promise<GuardedOrderResult> {
+  async confirmOrderGuarded(
+    job: OrderJobPayload,
+    paymentRef: string | null,
+  ): Promise<GuardedOrderResult> {
     return this.prisma.db.$transaction(async (tx) => {
       // Row lock: any concurrent confirm for this sale blocks until we commit.
       const rows = await tx.$queryRaw<{ stock_total: number }[]>`
@@ -41,9 +44,7 @@ export class OrdersRepository {
         where: { saleId: job.saleId, status: OrderStatus.confirmed },
       });
       const targetStatus =
-        confirmedCount < stockTotal
-          ? OrderStatus.confirmed
-          : OrderStatus.sold_out;
+        confirmedCount < stockTotal ? OrderStatus.confirmed : OrderStatus.sold_out;
 
       // Guard: WHERE status = in_progress ensures at-most-once semantics on retry.
       // If the row is already terminal (crash + BullMQ redelivery), updateMany is a no-op.
@@ -76,9 +77,7 @@ export class OrdersRepository {
    * Returns `{ count, orderId }`: count=1 means the transition happened (release
    * Redis); count=0 means already terminal (skip release).
    */
-  async failOrder(
-    job: OrderJobPayload,
-  ): Promise<GuardedOrderResult & { updatedCount: number }> {
+  async failOrder(job: OrderJobPayload): Promise<GuardedOrderResult & { updatedCount: number }> {
     const { count: updatedCount } = await this.prisma.db.order.updateMany({
       where: {
         idempotencyKey: job.idempotencyKey,

@@ -12,17 +12,9 @@ import { formatDuration } from "./format-duration";
  */
 const TICK_INTERVAL_MS = 1000;
 
-export function Countdown({
-  targetAt,
-  serverNow,
-}: {
-  targetAt: string;
-  serverNow: string;
-}) {
+export function Countdown({ targetAt, serverNow }: { targetAt: string; serverNow: string }) {
   const targetMs = new Date(targetAt).getTime();
-  const [remainingMs, setRemainingMs] = useState(
-    () => targetMs - new Date(serverNow).getTime(),
-  );
+  const [remainingMs, setRemainingMs] = useState(() => targetMs - new Date(serverNow).getTime());
 
   useEffect(() => {
     // Offset between server clock and local clock — lets us track server time

@@ -1,5 +1,9 @@
 import { Injectable } from "@nestjs/common";
-import { ORDER_STATUSES, type OrderResultUpdatedPayload, type OrderStatus } from "@flash-sale/shared";
+import {
+  ORDER_STATUSES,
+  type OrderResultUpdatedPayload,
+  type OrderStatus,
+} from "@flash-sale/shared";
 import { PrismaService } from "../db/prisma.service.js";
 
 /** Statuses that block a re-purchase attempt. failed is excluded — it allows retry. (FR-14) */

@@ -11,11 +11,7 @@ import { LiveStock } from "./live-stock";
  * updates arrive in later cards (S-4.1 / UR-3); here Buy is only enabled/disabled by
  * state.
  */
-export default async function SalePage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function SalePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const sale = await getSale(id);
   if (!sale) {
@@ -52,12 +48,10 @@ export default async function SalePage({
       {sale.state === "upcoming" && (
         <>
           <p>
-            <strong>Upcoming</strong> — starts{" "}
-            {new Date(sale.startsAt).toLocaleString()}
+            <strong>Upcoming</strong> — starts {new Date(sale.startsAt).toLocaleString()}
           </p>
           <p>
-            Starts in{" "}
-            <Countdown targetAt={sale.startsAt} serverNow={sale.serverNow} />
+            Starts in <Countdown targetAt={sale.startsAt} serverNow={sale.serverNow} />
           </p>
           <button type="button" disabled>
             Buy

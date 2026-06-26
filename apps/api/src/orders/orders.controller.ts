@@ -8,9 +8,7 @@ export class OrdersController {
   constructor(private readonly service: OrdersService) {}
 
   @Post()
-  buy(
-    @Body() dto: CreateOrderDto,
-  ): Promise<{ status: string; idempotencyKey: string }> {
+  buy(@Body() dto: CreateOrderDto): Promise<{ status: string; idempotencyKey: string }> {
     return this.service.buy(dto);
   }
 }

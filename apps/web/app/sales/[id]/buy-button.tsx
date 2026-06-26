@@ -135,7 +135,9 @@ function SimpleBuyForm({
       <button type="submit" disabled={isProcessing}>
         {isProcessing ? "Processing…" : "Buy"}
       </button>
-      {!isPending && orderStatus === ORDER_STATUSES.FAILED && <p>Order failed. Please try again.</p>}
+      {!isPending && orderStatus === ORDER_STATUSES.FAILED && (
+        <p>Order failed. Please try again.</p>
+      )}
       {error && <p>{error}</p>}
     </form>
   );

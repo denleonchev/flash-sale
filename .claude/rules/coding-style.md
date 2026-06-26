@@ -15,6 +15,7 @@ code itself — a hidden constraint, a non-obvious invariant, a deliberate trade
 or a workaround for a specific external behaviour.
 
 **Keep:**
+
 - FR-/NFR- requirement references (`// FR-15: must never exceed stockTotal`).
 - Concurrency reasoning — required by `concurrency.md` for any stock/queue/confirm code.
 - Non-obvious constraints: env-var names and defaults, atomicity guarantees, retry
@@ -22,6 +23,7 @@ or a workaround for a specific external behaviour.
 - Trade-off notes: why a simpler approach was rejected, known under-count trade-off, etc.
 
 **Remove:**
+
 - Anything that restates what the code already says clearly: "creates an order row",
   "returns all sales", "iterates over items".
 - Class-level JSDoc that just names the class's role ("Raw DB access for orders").

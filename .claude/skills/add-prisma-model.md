@@ -3,6 +3,7 @@
 How to add or modify a database model in this repo.
 
 ## Steps
+
 1. Edit the Prisma schema (`apps/api` or a shared prisma package, wherever the
    schema lives in this repo) to add/change the model.
 2. Keep names and fields aligned with the data model in
@@ -17,6 +18,7 @@ How to add or modify a database model in this repo.
    the new schema.
 
 ## Notes
+
 - Use a unique constraint where the data model calls for idempotency
   (e.g. orders unique on buyer+sale).
 - `vector` (pgvector) and `jsonb` columns: follow the design doc; these may need

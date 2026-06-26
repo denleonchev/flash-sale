@@ -17,10 +17,7 @@ import type { CreateOrderDto } from "./dto/create-order.dto.js";
 /** P2002 = unique constraint violation in Prisma. */
 function isPrismaUniqueError(e: unknown): boolean {
   return (
-    typeof e === "object" &&
-    e !== null &&
-    "code" in e &&
-    (e as { code: unknown }).code === "P2002"
+    typeof e === "object" && e !== null && "code" in e && (e as { code: unknown }).code === "P2002"
   );
 }
 
@@ -90,7 +87,11 @@ export class OrdersService {
    * - Enqueue failure rolls back: deleteOrder + releaseStock so no orphan
    *   in_progress row is left without a job to resolve it.
    */
-  private async executeOrder(dto: CreateOrderDto, idempotencyKey: string, priceCents: number): Promise<BuyResult> {
+  private async executeOrder(
+    dto: CreateOrderDto,
+    idempotencyKey: string,
+    priceCents: number,
+  ): Promise<BuyResult> {
     const reserved = await this.stockService.reserveStock(dto.saleId, dto.quantity);
     if (!reserved) {
       throw new ConflictException("sold out");
@@ -112,7 +113,14 @@ export class OrdersService {
     }
 
     try {
-      await this.orderProducer.enqueueOrderJob(dto.saleId, dto.buyerId, idempotencyKey, dto.quantity, priceCents, dto.paymentMethodId);
+      await this.orderProducer.enqueueOrderJob(
+        dto.saleId,
+        dto.buyerId,
+        idempotencyKey,
+        dto.quantity,
+        priceCents,
+        dto.paymentMethodId,
+      );
     } catch (err) {
       // Enqueue failed: orphan in_progress row would block all future retries.
       await this.ordersRepository.deleteOrder(orderId);

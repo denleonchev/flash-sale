@@ -13,9 +13,7 @@ export function mintSocketTicket(buyerId: string): string {
   if (!secret) throw new Error("SOCKET_TICKET_SECRET is not set");
 
   const exp = Date.now() + 60_000; // 60 s TTL — refreshed on every (re)connect
-  const sig = createHmac("sha256", secret)
-    .update(`${buyerId}.${exp}`)
-    .digest("base64url");
+  const sig = createHmac("sha256", secret).update(`${buyerId}.${exp}`).digest("base64url");
 
   return `${buyerId}.${exp}.${sig}`;
 }

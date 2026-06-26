@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  Logger,
-  type OnModuleDestroy,
-  type OnModuleInit,
-} from "@nestjs/common";
+import { Injectable, Logger, type OnModuleDestroy, type OnModuleInit } from "@nestjs/common";
 import { REDIS_CHANNELS, type OrderResult } from "@flash-sale/shared";
 import type { Redis } from "ioredis";
 import { createRedisConnection } from "../redis/redis.connection.js";

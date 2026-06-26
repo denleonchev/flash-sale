@@ -1,4 +1,12 @@
-import { IsDateString, IsInt, IsNotEmpty, IsOptional, IsString, MaxLength, Min } from "class-validator";
+import {
+  IsDateString,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  MaxLength,
+  Min,
+} from "class-validator";
 import type { CreateSale } from "@flash-sale/shared";
 
 export class CreateSaleDto implements CreateSale {

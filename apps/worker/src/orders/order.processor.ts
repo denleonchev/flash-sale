@@ -26,9 +26,7 @@ export class OrderProcessor extends WorkerHost {
   }
 
   async process(job: Job<OrderJobPayload>): Promise<void> {
-    this.logger.log(
-      `picked up order job ${job.id} (key ${job.data.idempotencyKey})`,
-    );
+    this.logger.log(`picked up order job ${job.id} (key ${job.data.idempotencyKey})`);
     await this.finalizer.finalizeOrder(job.data);
   }
 

@@ -32,7 +32,13 @@ export function SaleSearchForm({ initialQuery }: Props) {
       />
       <button type="submit">Search</button>
       {initialQuery && (
-        <button type="button" onClick={() => { setQuery(""); router.push("/sales"); }}>
+        <button
+          type="button"
+          onClick={() => {
+            setQuery("");
+            router.push("/sales");
+          }}
+        >
           Clear
         </button>
       )}

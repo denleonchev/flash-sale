@@ -17,6 +17,13 @@ import { FraudModule } from "../fraud/fraud.module.js";
  */
 @Module({
   imports: [BullModule.registerQueue({ name: ORDER_QUEUE }), PaymentModule, FraudModule],
-  providers: [OrderProcessor, OrderFinalizer, OrdersRepository, StockReleaseService, StockPublisher, OrderResultPublisher],
+  providers: [
+    OrderProcessor,
+    OrderFinalizer,
+    OrdersRepository,
+    StockReleaseService,
+    StockPublisher,
+    OrderResultPublisher,
+  ],
 })
 export class OrdersModule {}

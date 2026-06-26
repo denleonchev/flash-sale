@@ -2,14 +2,16 @@ import { describe, expect, it } from "vitest";
 import { deriveSaleState } from "./index.js";
 
 const START = new Date("2025-01-01T10:00:00Z");
-const END   = new Date("2025-01-01T12:00:00Z");
-const MID   = new Date("2025-01-01T11:00:00Z");
+const END = new Date("2025-01-01T12:00:00Z");
+const MID = new Date("2025-01-01T11:00:00Z");
 
 const sale = { startsAt: START, endsAt: END };
 
 describe("deriveSaleState", () => {
   it("returns upcoming when now is before startsAt", () => {
-    expect(deriveSaleState({ ...sale, remainingStock: 10 }, new Date("2025-01-01T09:59:59Z"))).toBe("upcoming");
+    expect(deriveSaleState({ ...sale, remainingStock: 10 }, new Date("2025-01-01T09:59:59Z"))).toBe(
+      "upcoming",
+    );
   });
 
   it("returns live exactly at startsAt (stock > 0)", () => {
@@ -25,7 +27,9 @@ describe("deriveSaleState", () => {
   });
 
   it("returns ended after endsAt", () => {
-    expect(deriveSaleState({ ...sale, remainingStock: 5 }, new Date("2025-01-01T12:00:01Z"))).toBe("ended");
+    expect(deriveSaleState({ ...sale, remainingStock: 5 }, new Date("2025-01-01T12:00:01Z"))).toBe(
+      "ended",
+    );
   });
 
   it("returns ended when stock is 0 within the window", () => {

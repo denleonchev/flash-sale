@@ -13,10 +13,7 @@ export class ConcurrencyResult {
 
   /** PASS ⟺ exactly K confirmed and no buyer confirmed twice. */
   get passed(): boolean {
-    return (
-      this.snapshot.confirmed === this.config.stock &&
-      this.snapshot.duplicateBuyers === 0
-    );
+    return this.snapshot.confirmed === this.config.stock && this.snapshot.duplicateBuyers === 0;
   }
 
   print(): void {
@@ -33,11 +30,7 @@ export class ConcurrencyResult {
     console.log(`first confirm    : ${this.formatMs(this.timing.firstConfirmMs)}`);
     console.log(`drained          : ${this.formatMs(this.timing.drainMs)}`);
     console.log("──────────────────────── (timing ±250ms poll resolution)");
-    console.log(
-      this.passed
-        ? "✅ PASS — no oversell"
-        : "❌ FAIL — oversell or duplicate detected",
-    );
+    console.log(this.passed ? "✅ PASS — no oversell" : "❌ FAIL — oversell or duplicate detected");
   }
 
   private formatMs(ms: number | null): string {

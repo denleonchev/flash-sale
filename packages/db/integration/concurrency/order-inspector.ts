@@ -34,10 +34,7 @@ export class OrderInspector {
    * worker even starts.) On timeout we fall through; the snapshot still asserts —
    * confirmed short of expected means the worker is down/slow or a job failed.
    */
-  async waitForQueueToDrain(
-    saleId: string,
-    expectedConfirmed: number,
-  ): Promise<DrainTiming> {
+  async waitForQueueToDrain(saleId: string, expectedConfirmed: number): Promise<DrainTiming> {
     const start = Date.now();
     const deadline = start + DRAIN_TIMEOUT_MS;
     let firstConfirmMs: number | null = null;

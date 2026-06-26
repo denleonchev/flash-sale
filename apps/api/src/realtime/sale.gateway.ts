@@ -104,18 +104,14 @@ export class SaleGateway implements OnGatewayConnection {
   }
 
   broadcastStock(payload: SaleStockUpdatedPayload): void {
-    this.server
-      .to(getSaleRoomId(payload.saleId))
-      .emit(SOCKET_EVENTS.SALE_STOCK_UPDATED, payload);
+    this.server.to(getSaleRoomId(payload.saleId)).emit(SOCKET_EVENTS.SALE_STOCK_UPDATED, payload);
   }
 
   sendOrderResult(result: OrderResult): void {
-    this.server
-      .to(getUserRoomId(result.buyerId))
-      .emit(SOCKET_EVENTS.ORDER_RESULT_UPDATED, {
-        orderId: result.orderId,
-        saleId: result.saleId,
-        status: result.status,
-      } satisfies OrderResultUpdatedPayload);
+    this.server.to(getUserRoomId(result.buyerId)).emit(SOCKET_EVENTS.ORDER_RESULT_UPDATED, {
+      orderId: result.orderId,
+      saleId: result.saleId,
+      status: result.status,
+    } satisfies OrderResultUpdatedPayload);
   }
 }

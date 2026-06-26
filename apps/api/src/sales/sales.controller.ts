@@ -1,4 +1,15 @@
-import { BadRequestException, Body, Controller, Get, NotFoundException, Param, ParseUUIDPipe, Post, Query, UseGuards } from "@nestjs/common";
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  NotFoundException,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
 import type { Sale } from "@flash-sale/shared";
 import { AdminGuard } from "../admin/admin.guard.js";
 import { SalesService } from "./sales.service.js";

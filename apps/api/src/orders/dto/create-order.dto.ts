@@ -1,4 +1,14 @@
-import { IsEmail, IsInt, IsOptional, IsPositive, IsString, IsUUID, Matches, MaxLength, Min } from "class-validator";
+import {
+  IsEmail,
+  IsInt,
+  IsOptional,
+  IsPositive,
+  IsString,
+  IsUUID,
+  Matches,
+  MaxLength,
+  Min,
+} from "class-validator";
 
 /** Input for POST /orders (FR-7, NFR-9). The client is never trusted — every field is validated. */
 export class CreateOrderDto {
@@ -30,6 +40,8 @@ export class CreateOrderDto {
   /** FR-12 [Ext]: Stripe PaymentMethod token from the frontend. Optional — absent in fake-payment mode. */
   @IsOptional()
   @IsString()
-  @Matches(/^pm_[A-Za-z0-9]+$/, { message: "paymentMethodId must be a valid Stripe PaymentMethod id" })
+  @Matches(/^pm_[A-Za-z0-9]+$/, {
+    message: "paymentMethodId must be a valid Stripe PaymentMethod id",
+  })
   paymentMethodId?: string;
 }

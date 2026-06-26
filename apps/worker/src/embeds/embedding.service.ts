@@ -17,11 +17,9 @@ export class EmbeddingService {
     if (!this.extractor) {
       this.logger.log("loading all-MiniLM-L6-v2 (one-time, stays in memory)");
       const { pipeline } = await import("@xenova/transformers");
-      this.extractor = (await pipeline(
-        "feature-extraction",
-        "Xenova/all-MiniLM-L6-v2",
-        { quantized: true },
-      )) as unknown as Extractor;
+      this.extractor = (await pipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2", {
+        quantized: true,
+      })) as unknown as Extractor;
     }
     const output = await this.extractor(text, {
       pooling: "mean",

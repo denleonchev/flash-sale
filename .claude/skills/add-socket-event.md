@@ -3,6 +3,7 @@
 How to add a real-time event.
 
 ## Steps
+
 1. Sockets live in **api** only. The worker never emits to sockets directly — it
    publishes to Redis pub/sub, and api relays. Keep this separation.
 2. Use the **Redis adapter** so broadcasts work across instances. Do not hold
@@ -14,5 +15,6 @@ How to add a real-time event.
 5. Scope broadcasts to the relevant event/room (per sale), not globally.
 
 ## Typical events
+
 - stock update (broadcast to everyone watching a sale),
 - order result (to the specific buyer).

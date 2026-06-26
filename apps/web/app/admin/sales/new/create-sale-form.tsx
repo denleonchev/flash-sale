@@ -62,11 +62,7 @@ export function CreateSaleForm() {
           disabled={busy}
           rows={4}
         />
-        <button
-          type="button"
-          onClick={handleImprove}
-          disabled={busy || !title.trim()}
-        >
+        <button type="button" onClick={handleImprove} disabled={busy || !title.trim()}>
           {improving ? "Improving…" : "Improve title & description"}
         </button>
         {improveError && <p>{improveError}</p>}
@@ -77,7 +73,15 @@ export function CreateSaleForm() {
       </div>
       <div>
         <label htmlFor="price">Price (USD)</label>
-        <input id="price" name="price" type="number" min="0.01" step="0.01" required disabled={busy} />
+        <input
+          id="price"
+          name="price"
+          type="number"
+          min="0.01"
+          step="0.01"
+          required
+          disabled={busy}
+        />
       </div>
       <div>
         <label htmlFor="startsAt">Starts at</label>
