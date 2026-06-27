@@ -1,8 +1,6 @@
 import { BullModule } from "@nestjs/bullmq";
 import { Module } from "@nestjs/common";
 import { ORDER_QUEUE } from "@flash-sale/shared";
-import { OrderProcessor } from "./order.processor.js";
-import { OrderFinalizer } from "./order.finalizer.js";
 import { CaptureOrderProcessor } from "./order-capture.processor.js";
 import { CaptureOrderFinalizer } from "./order-capture.finalizer.js";
 import { OrdersRepository } from "./orders.repository.js";
@@ -20,8 +18,6 @@ import { FraudModule } from "../fraud/fraud.module.js";
 @Module({
   imports: [BullModule.registerQueue({ name: ORDER_QUEUE }), PaymentModule, FraudModule],
   providers: [
-    OrderProcessor,
-    OrderFinalizer,
     CaptureOrderProcessor,
     CaptureOrderFinalizer,
     OrdersRepository,

@@ -37,11 +37,9 @@ export class CreateOrderDto {
   @Min(1)
   quantity!: number;
 
-  /** FR-12 [Ext]: Stripe PaymentMethod token from the frontend. Optional — absent in fake-payment mode. */
-  @IsOptional()
   @IsString()
   @Matches(/^pm_[A-Za-z0-9]+$/, {
     message: "paymentMethodId must be a valid Stripe PaymentMethod id",
   })
-  paymentMethodId?: string;
+  paymentMethodId!: string;
 }

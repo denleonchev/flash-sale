@@ -9,7 +9,6 @@ import {
 
 import { SalesService } from "../sales/sales.service.js";
 import { UsersService } from "../users/users.service.js";
-import { OrderProducer } from "./order.producer.js";
 import { OrderResultPublisher } from "./order-result.publisher.js";
 import { OrdersRepository } from "./orders.repository.js";
 import { StockService } from "../stock/stock.service.js";
@@ -27,14 +26,9 @@ export type BuyResult = { status: string; idempotencyKey: string; clientSecret?:
 @Injectable()
 export class OrdersService {
   private readonly logger = new Logger(OrdersService.name);
-  // Stripe is only instantiated when PAYMENT_PROVIDER=stripe. (FR-12)
-  private readonly stripe =
-    process.env["PAYMENT_PROVIDER"] === "stripe"
-      ? new Stripe(process.env["STRIPE_SECRET_KEY"]!)
-      : null;
+  private readonly stripe = new Stripe(process.env["STRIPE_SECRET_KEY"]!);
 
   constructor(
-    private readonly orderProducer: OrderProducer,
     private readonly orderResultPublisher: OrderResultPublisher,
     private readonly stockService: StockService,
     private readonly salesService: SalesService,
@@ -56,9 +50,7 @@ export class OrdersService {
     }
 
     const idempotencyKey = await this.buildIdempotencyKey(dto.buyerId, dto.saleId);
-    return this.stripe
-      ? this.executeStripeOrder(dto, idempotencyKey, sale.priceCents)
-      : this.executeFakeOrder(dto, idempotencyKey, sale.priceCents);
+    return this.executeStripeOrder(dto, idempotencyKey, sale.priceCents);
   }
 
   getLatestFinalizedOrder(
@@ -117,14 +109,12 @@ export class OrdersService {
     idempotencyKey: string,
     priceCents: number,
   ): Promise<BuyResult> {
-    const stripe = this.stripe!;
-
     const reserved = await this.stockService.reserveStock(dto.saleId, dto.quantity);
     if (!reserved) throw new ConflictException("sold out");
 
     let pi: Stripe.PaymentIntent;
     try {
-      pi = await stripe.paymentIntents.create({
+      pi = await this.stripe.paymentIntents.create({
         amount: priceCents,
         currency: "usd",
         payment_method: dto.paymentMethodId,
@@ -147,7 +137,7 @@ export class OrdersService {
       orderId = created.orderId;
     } catch (e) {
       // P2002: double-click — cancel the PI we just created and release reservation.
-      await stripe.paymentIntents.cancel(pi.id).catch(() => undefined);
+      await this.stripe.paymentIntents.cancel(pi.id).catch(() => undefined);
       await this.stockService.releaseStock(dto.saleId, dto.quantity);
       if (isPrismaUniqueError(e)) return { status: "accepted", idempotencyKey };
       throw e;
@@ -161,65 +151,5 @@ export class OrdersService {
     });
 
     return { status: "accepted", idempotencyKey, clientSecret: pi.client_secret ?? undefined };
-  }
-
-  /**
-   * Concurrency (§4 plan, .claude/rules/concurrency.md):
-   * - Redis DECR is the sold-out gate — atomic, before any DB write. (FR-8, FR-15)
-   * - UNIQUE(idempotency_key) on INSERT is the double-click dedup: two concurrent
-   *   requests both past findBlockingOrder race here; the loser gets P2002,
-   *   releases its extra reservation, and returns accepted.
-   * - Enqueue failure rolls back: deleteOrder + releaseStock so no orphan
-   *   in_progress row is left without a job to resolve it.
-   */
-  private async executeFakeOrder(
-    dto: CreateOrderDto,
-    idempotencyKey: string,
-    priceCents: number,
-  ): Promise<BuyResult> {
-    const reserved = await this.stockService.reserveStock(dto.saleId, dto.quantity);
-    if (!reserved) {
-      throw new ConflictException("sold out");
-    }
-
-    let orderId: string;
-    try {
-      const created = await this.ordersRepository.createInProgressOrder(
-        dto.buyerId,
-        dto.saleId,
-        idempotencyKey,
-      );
-      orderId = created.orderId;
-    } catch (e) {
-      // P2002: double-click lost the INSERT race → release extra reservation.
-      await this.stockService.releaseStock(dto.saleId, dto.quantity);
-      if (isPrismaUniqueError(e)) return { status: "accepted", idempotencyKey };
-      throw e;
-    }
-
-    try {
-      await this.orderProducer.enqueueOrderJob(
-        dto.saleId,
-        dto.buyerId,
-        idempotencyKey,
-        dto.quantity,
-        priceCents,
-        dto.paymentMethodId,
-      );
-    } catch (err) {
-      // Enqueue failed: orphan in_progress row would block all future retries.
-      await this.ordersRepository.deleteOrder(orderId);
-      await this.stockService.releaseStock(dto.saleId, dto.quantity);
-      throw err;
-    }
-
-    await this.orderResultPublisher.publishOrderResult({
-      buyerId: dto.buyerId,
-      saleId: dto.saleId,
-      status: ORDER_STATUSES.IN_PROGRESS,
-      orderId,
-    });
-
-    return { status: "accepted", idempotencyKey };
   }
 }

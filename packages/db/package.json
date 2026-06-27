@@ -20,7 +20,6 @@
     "migrate:dev": "prisma migrate dev",
     "migrate:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
-    "test:integration:concurrency": "tsx integration/concurrency/main.ts",
     "postinstall": "prisma generate && tsc"
   },
   "dependencies": {
