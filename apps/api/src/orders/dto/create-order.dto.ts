@@ -38,7 +38,7 @@ export class CreateOrderDto {
   quantity!: number;
 
   @IsString()
-  @Matches(/^pm_[A-Za-z0-9]+$/, {
+  @Matches(/^pm_[A-Za-z0-9_]+$/, {
     message: "paymentMethodId must be a valid Stripe PaymentMethod id",
   })
   paymentMethodId!: string;
