@@ -26,6 +26,8 @@ export const ORDER_STATUS_VALUES = Object.values(ORDER_STATUSES) as [OrderStatus
 /** Shared so producer (api) and consumer (worker) cannot drift apart. (NFR-11) */
 export const ORDER_QUEUE = "orders";
 export const ORDER_JOB = "process-order";
+// FR-12: Stripe authorize/capture — enqueued by the webhook when PI is capturable.
+export const CAPTURE_ORDER_JOB = "capture-order";
 
 export const SOCKET_EVENTS = {
   SALE_STOCK_SUBSCRIBE: "sale:stock:subscribe", // client → server (FR-17, FR-19)
@@ -69,6 +71,15 @@ export interface OrderJobPayload {
   paymentMethodId?: string;
   /** FR-12 [Ext]: sale price in cents forwarded from the Sale record so the worker never re-fetches it. */
   priceCents: number;
+}
+
+/** FR-12: payload for the capture-order BullMQ job (enqueued by webhook, processed by worker). */
+export interface CaptureOrderJobPayload {
+  orderId: string;
+  saleId: string;
+  buyerId: string;
+  paymentIntentId: string;
+  idempotencyKey: string;
 }
 
 export interface OrderResult {

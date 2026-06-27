@@ -9,6 +9,8 @@ import { mintAdminTicket } from "@/lib/admin-ticket";
 export type BuyState = {
   errorMessage?: string;
   idempotencyKey?: string;
+  /** Stripe PI client_secret — present when PAYMENT_PROVIDER=stripe. (FR-12) */
+  clientSecret?: string;
 };
 
 /**
@@ -50,8 +52,12 @@ export async function buyAction(saleId: string, paymentMethodId?: string): Promi
     return { errorMessage: `Unexpected error (${res.status})` };
   }
 
-  const body = (await res.json()) as { status: string; idempotencyKey: string };
-  return { idempotencyKey: body.idempotencyKey };
+  const body = (await res.json()) as {
+    status: string;
+    idempotencyKey: string;
+    clientSecret?: string;
+  };
+  return { idempotencyKey: body.idempotencyKey, clientSecret: body.clientSecret };
 }
 
 export async function endSaleAction(saleId: string, _formData: FormData): Promise<void> {

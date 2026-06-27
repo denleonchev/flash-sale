@@ -53,15 +53,16 @@ export class OrdersRepository {
     buyerId: string,
     saleId: string,
     idempotencyKey: string,
+    paymentRef?: string,
   ): Promise<{ orderId: string }> {
     const order = await this.prisma.db.order.create({
-      data: { buyerId, saleId, idempotencyKey, status: "in_progress" },
+      data: { buyerId, saleId, idempotencyKey, status: "in_progress", paymentRef },
       select: { id: true },
     });
     return { orderId: order.id };
   }
 
-  /** Rollback when enqueue fails: orphan in_progress without a job blocks re-purchase forever. (§4 step 5) */
+  /** Rollback when PI creation or linking fails — orphan row blocks re-purchase forever. (§4 step 5) */
   deleteOrder(orderId: string): Promise<unknown> {
     return this.prisma.db.order.delete({ where: { id: orderId } });
   }
@@ -94,5 +95,30 @@ export class OrdersRepository {
       where: { id: orderId, acknowledgedAt: null },
       data: { acknowledgedAt: new Date() },
     });
+  }
+
+  /** FR-12: webhook looks up the in_progress order that matches the captured PI. */
+  findInProgressOrderByPaymentRef(paymentRef: string): Promise<{
+    id: string;
+    saleId: string;
+    buyerId: string;
+    idempotencyKey: string;
+  } | null> {
+    return this.prisma.db.order.findFirst({
+      where: { paymentRef, status: "in_progress" },
+      select: { id: true, saleId: true, buyerId: true, idempotencyKey: true },
+    });
+  }
+
+  /**
+   * Transitions in_progress → failed. (FR-12 webhook: payment_intent.payment_failed)
+   * WHERE guard makes it idempotent on Stripe webhook retry.
+   */
+  async failFromWebhook(orderId: string): Promise<{ transitioned: boolean }> {
+    const { count } = await this.prisma.db.order.updateMany({
+      where: { id: orderId, status: "in_progress" },
+      data: { status: "failed" },
+    });
+    return { transitioned: count > 0 };
   }
 }

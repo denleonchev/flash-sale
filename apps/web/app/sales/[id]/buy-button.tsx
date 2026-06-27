@@ -87,7 +87,17 @@ function StripeBuyForm({
 
     startTransition(async () => {
       const result: BuyState = await buyAction(saleId, paymentMethod.id);
-      if (result.errorMessage) setError(result.errorMessage);
+      if (result.errorMessage) {
+        setError(result.errorMessage);
+        return;
+      }
+
+      if (result.clientSecret) {
+        // Authorize/capture: confirm the PI in the browser — handles 3DS if needed.
+        // On success, Stripe fires amount_capturable_updated → worker captures.
+        const { error: confirmError } = await stripe.confirmCardPayment(result.clientSecret);
+        if (confirmError) setError(confirmError.message ?? "Payment failed");
+      }
     });
   };
 

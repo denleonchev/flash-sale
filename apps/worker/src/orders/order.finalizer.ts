@@ -56,7 +56,7 @@ export class OrderFinalizer {
     await this.orderResultPublisher.publishOrderResult({
       buyerId: job.buyerId,
       saleId: job.saleId,
-      status,
+      status: status as import("@flash-sale/shared").OrderStatus,
       orderId,
     });
 

@@ -5,7 +5,8 @@ import { AppModule } from "./app.module.js";
 import { RedisIoAdapter } from "./realtime/redis-io.adapter.js";
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule);
+  // rawBody: true is required for Stripe webhook signature verification. (FR-12)
+  const app = await NestFactory.create(AppModule, { rawBody: true });
   app.enableShutdownHooks();
   // Browser may connect to the socket from the web origin; reflect it. (NFR-10)
   app.enableCors({ origin: true });

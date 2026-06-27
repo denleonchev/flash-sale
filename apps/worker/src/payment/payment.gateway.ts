@@ -11,4 +11,7 @@ export abstract class PaymentGateway {
   ): Promise<PaymentResult>;
   // idempotencyKey is used as the Stripe refund idempotency key (NFR-2).
   abstract refund(paymentRef: string, idempotencyKey: string): Promise<void>;
+  // FR-12 authorize/capture: capture or cancel an already-authorized PI.
+  abstract capturePI(paymentIntentId: string, idempotencyKey: string): Promise<void>;
+  abstract cancelPI(paymentIntentId: string): Promise<void>;
 }

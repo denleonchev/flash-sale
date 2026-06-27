@@ -6,6 +6,7 @@ import { QueueModule } from "./queue/queue.module.js";
 import { RealtimeModule } from "./realtime/realtime.module.js";
 import { SalesModule } from "./sales/sales.module.js";
 import { FraudFlagsModule } from "./fraud-flags/fraud-flags.module.js";
+import { StripeWebhookModule } from "./stripe-webhook/stripe-webhook.module.js";
 
 /**
  * Root module. Health check (Terminus, S-E0.3), queue backbone (S-E0.4a/b),
@@ -20,6 +21,7 @@ import { FraudFlagsModule } from "./fraud-flags/fraud-flags.module.js";
     RealtimeModule,
     SalesModule,
     FraudFlagsModule,
+    StripeWebhookModule,
   ],
 })
 export class AppModule {}

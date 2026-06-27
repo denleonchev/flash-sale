@@ -16,4 +16,12 @@ export class FakePaymentService extends PaymentGateway {
   refund(): Promise<void> {
     return Promise.resolve();
   }
+
+  capturePI(): Promise<void> {
+    return Promise.resolve();
+  }
+
+  cancelPI(): Promise<void> {
+    return Promise.resolve();
+  }
 }

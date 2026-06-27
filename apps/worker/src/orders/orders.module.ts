@@ -3,6 +3,8 @@ import { Module } from "@nestjs/common";
 import { ORDER_QUEUE } from "@flash-sale/shared";
 import { OrderProcessor } from "./order.processor.js";
 import { OrderFinalizer } from "./order.finalizer.js";
+import { CaptureOrderProcessor } from "./order-capture.processor.js";
+import { CaptureOrderFinalizer } from "./order-capture.finalizer.js";
 import { OrdersRepository } from "./orders.repository.js";
 import { StockReleaseService } from "./stock-release.service.js";
 import { StockPublisher } from "../realtime/stock.publisher.js";
@@ -20,6 +22,8 @@ import { FraudModule } from "../fraud/fraud.module.js";
   providers: [
     OrderProcessor,
     OrderFinalizer,
+    CaptureOrderProcessor,
+    CaptureOrderFinalizer,
     OrdersRepository,
     StockReleaseService,
     StockPublisher,
