@@ -17,10 +17,26 @@ export class FraudScreeningService {
 
   async screen(payload: FraudScreeningJobPayload): Promise<void> {
     const { orderId, buyerId, saleId } = payload;
-
     const activity = await this.repo.getBuyerActivity(buyerId, 60);
+    const pattern = this.buildPattern(activity);
+    const { vector, similar } = await this.fetchSimilar(pattern);
+    const { risk, reason } = await this.classify(orderId, pattern, similar);
 
-    const pattern = [
+    if (([RISK_LEVELS.MEDIUM, RISK_LEVELS.HIGH] as RiskLevel[]).includes(risk)) {
+      await this.repo.createFlag({
+        orderId,
+        buyerId,
+        saleId,
+        risk,
+        reason,
+        pattern,
+        embedding: vector ?? [],
+      });
+    }
+  }
+
+  private buildPattern(activity: Awaited<ReturnType<typeof this.repo.getBuyerActivity>>): string {
+    return [
       `attempts: ${activity.attempts}`,
       `confirmed: ${activity.confirmed}`,
       `sold_out: ${activity.sold_out}`,
@@ -28,10 +44,24 @@ export class FraudScreeningService {
       `time_window_minutes: ${activity.time_window_minutes}`,
       `account_age_hours: ${activity.account_age_hours}`,
     ].join(", ");
+  }
 
-    const vector = await this.embeddingService.embed(pattern);
-    const similar = await this.repo.findSimilarFlags(vector, 3);
+  private async fetchSimilar(pattern: string) {
+    try {
+      const vector = await this.embeddingService.embed(pattern);
+      const similar = await this.repo.findSimilarFlags(vector, 3);
+      return { vector, similar };
+    } catch (err) {
+      this.logger.warn(`Embedding unavailable, skipping similar-case lookup: ${String(err)}`);
+      return { vector: undefined, similar: [] };
+    }
+  }
 
+  private async classify(
+    orderId: string,
+    pattern: string,
+    similar: Awaited<ReturnType<typeof this.repo.findSimilarFlags>>,
+  ): Promise<{ risk: RiskLevel; reason: string }> {
     const historicalContext = similar.length
       ? "\n\nSimilar cases from this platform's history:\n" +
         similar
@@ -39,28 +69,20 @@ export class FraudScreeningService {
           .join("\n")
       : "";
 
-    const userMsg = `Current buyer pattern: ${pattern}\n\n${FRAUD_FEW_SHOT_EXAMPLES}${historicalContext}`;
-
-    let risk: RiskLevel = RISK_LEVELS.LOW;
-    let reason = "";
-
     try {
       const response = await this.groqService.chat([
         { role: "system", content: FRAUD_SYSTEM_PROMPT },
-        { role: "user", content: userMsg },
+        {
+          role: "user",
+          content: `Current buyer pattern: ${pattern}\n\n${FRAUD_FEW_SHOT_EXAMPLES}${historicalContext}`,
+        },
       ]);
       const parsed = JSON.parse(response) as { risk?: string; reason?: string };
       const parsedRisk = parsed.risk;
-      if (
-        parsedRisk === RISK_LEVELS.LOW ||
-        parsedRisk === RISK_LEVELS.MEDIUM ||
-        parsedRisk === RISK_LEVELS.HIGH
-      ) {
-        risk = parsedRisk;
-      } else {
-        this.logger.warn(`Groq returned unexpected risk value: "${parsedRisk}", defaulting to low`);
+      if ((Object.values(RISK_LEVELS) as string[]).includes(parsedRisk ?? "")) {
+        return { risk: parsedRisk as RiskLevel, reason: parsed.reason ?? "" };
       }
-      reason = parsed.reason ?? "";
+      this.logger.warn(`Groq returned unexpected risk value: "${parsedRisk}", defaulting to low`);
     } catch (err) {
       if (err instanceof GroqRateLimitError) throw err; // BullMQ retries with backoff
       // FR-27: fail-safe — any other Groq error must not block or surface to the buyer.
@@ -69,16 +91,6 @@ export class FraudScreeningService {
       );
     }
 
-    if (risk === RISK_LEVELS.MEDIUM || risk === RISK_LEVELS.HIGH) {
-      await this.repo.createFlag({
-        orderId,
-        buyerId,
-        saleId,
-        risk,
-        reason,
-        pattern,
-        embedding: vector,
-      });
-    }
+    return { risk: RISK_LEVELS.LOW, reason: "" };
   }
 }
