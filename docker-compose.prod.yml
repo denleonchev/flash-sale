@@ -1,24 +1,48 @@
 # Production app stack (S-E0.3).
 #
-# Runs web / api / worker in containers on a single host. The databases are NOT
+# Runs nginx / web / api / worker in containers on a single host. The databases are NOT
 # here — they are external managed services (Supabase Postgres + Upstash Redis),
 # reached via DATABASE_URL / REDIS_URL in .env (technical-design §8).
 #
 #   docker compose -f docker-compose.prod.yml up -d --build
 #
 # All config (incl. the external DB URLs) comes from .env. No secrets in this file.
+#
+# Traffic routing (nginx is the only service published to the host):
+#   /socket.io/  → api  (WebSocket)
+#   /webhooks/   → api  (payment callbacks)
+#   /            → web  (Next.js SSR + BFF)
+#   web/api are reachable only through nginx — not published to the host.
 
 services:
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      web:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
   web:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
     env_file: .env
-    # Next standalone server listens on $PORT; map it to the host.
+    # Next standalone server listens on $PORT; reachable only through nginx.
     environment:
       PORT: ${WEB_PORT}
-    ports:
-      - "${WEB_PORT}:${WEB_PORT}"
+    expose:
+      - "${WEB_PORT}"
+    depends_on:
+      api:
+        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:$${WEB_PORT}/ >/dev/null 2>&1 || exit 1"]
@@ -32,9 +56,9 @@ services:
       context: .
       dockerfile: apps/api/Dockerfile
     env_file: .env
-    # api listens on $API_PORT (apps/api/src/main.ts).
-    ports:
-      - "${API_PORT}:${API_PORT}"
+    # api listens on $API_PORT; reachable only through nginx.
+    expose:
+      - "${API_PORT}"
     restart: unless-stopped
     healthcheck:
       test:
