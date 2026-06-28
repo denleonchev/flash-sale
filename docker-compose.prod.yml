@@ -1,10 +1,12 @@
 # Production app stack (S-E0.3).
 #
+# Images are built by GitHub Actions and published to GHCR.
+# On the VM: docker compose -f docker-compose.prod.yml pull && docker compose -f docker-compose.prod.yml up -d
+# Watchtower polls GHCR and restarts containers automatically when new images are pushed.
+#
 # Runs nginx / web / api / worker in containers on a single host. The databases are NOT
 # here — they are external managed services (Supabase Postgres + Upstash Redis),
 # reached via DATABASE_URL / REDIS_URL in .env (technical-design §8).
-#
-#   docker compose -f docker-compose.prod.yml up -d --build
 #
 # All config (incl. the external DB URLs) comes from .env. No secrets in this file.
 #
@@ -29,11 +31,7 @@ services:
     restart: unless-stopped
 
   web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
-      args:
-        NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}
+    image: ghcr.io/denleonchev/flash-sale-web:latest
     env_file: .env
     # Next standalone server listens on $PORT; reachable only through nginx.
     environment:
@@ -52,9 +50,7 @@ services:
       start_period: 20s
 
   api:
-    build:
-      context: .
-      dockerfile: apps/api/Dockerfile
+    image: ghcr.io/denleonchev/flash-sale-api:latest
     env_file: .env
     # api listens on $API_PORT; reachable only through nginx.
     expose:
@@ -69,9 +65,7 @@ services:
       start_period: 15s
 
   worker:
-    build:
-      context: .
-      dockerfile: apps/worker/Dockerfile
+    image: ghcr.io/denleonchev/flash-sale-worker:latest
     env_file: .env
     # Health-only HTTP on $WORKER_PORT — internal to the compose network, not published.
     expose:
@@ -84,3 +78,12 @@ services:
       timeout: 5s
       retries: 5
       start_period: 15s
+
+  watchtower:
+    image: containrrr/watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      WATCHTOWER_POLL_INTERVAL: 300
+      WATCHTOWER_CLEANUP: "true"
+    restart: unless-stopped
