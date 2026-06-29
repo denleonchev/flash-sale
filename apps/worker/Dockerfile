@@ -23,9 +23,8 @@ RUN pnpm --filter @flash-sale/worker build
 # --ignore-scripts: prisma client is already generated above; skipping postinstall
 # avoids "prisma: not found" — prisma is a devDep and is absent in the prod deploy.
 RUN pnpm --filter @flash-sale/worker deploy --prod --ignore-scripts /app
-# sharp's prebuilt binaries (*.node + bundled libvips *.so) are downloaded by its install
-# script and are NOT in pnpm's content store, so pnpm deploy omits them. Copy the entire
-# build/Release dir from the build-stage node_modules.
+# sharp's .node binary is downloaded by its install script and is NOT in pnpm's content
+# store, so pnpm deploy omits it. Copy the entire build/Release dir explicitly.
 RUN find /repo/node_modules/.pnpm -path "*/sharp/build/Release" -type d | while read d; do \
       target="/app${d#/repo}"; mkdir -p "$target"; cp -r "$d/." "$target/"; \
     done
@@ -33,6 +32,9 @@ RUN find /repo/node_modules/.pnpm -path "*/sharp/build/Release" -type d | while 
 FROM base AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
+# libvips is a runtime dependency of sharp (used by @xenova/transformers for embeddings).
+# node:22-slim doesn't include it; the bundled .so files in build/Release need it too.
+RUN apt-get update && apt-get install -y --no-install-recommends libvips42 && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app /app
 EXPOSE 3002
 CMD ["node", "dist/main.js"]
