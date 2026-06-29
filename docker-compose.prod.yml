@@ -1,8 +1,7 @@
 # Production app stack (S-E0.3).
 #
 # Images are built by GitHub Actions and published to GHCR.
-# On the VM: docker compose -f docker-compose.prod.yml pull && docker compose -f docker-compose.prod.yml up -d
-# Watchtower polls GHCR and restarts containers automatically when new images are pushed.
+# Deploy is triggered by CI via IAP tunnel: pull + docker compose up -d.
 #
 # Runs nginx / web / api / worker in containers on a single host. The databases are NOT
 # here — they are external managed services (Supabase Postgres + Upstash Redis),
@@ -78,12 +77,3 @@ services:
       timeout: 5s
       retries: 5
       start_period: 15s
-
-  watchtower:
-    image: containrrr/watchtower
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    environment:
-      WATCHTOWER_POLL_INTERVAL: 300
-      WATCHTOWER_CLEANUP: "true"
-    restart: unless-stopped
