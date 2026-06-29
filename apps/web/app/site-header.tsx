@@ -41,7 +41,13 @@ export async function SiteHeader() {
       <span className="text-zinc-50 font-medium truncate">
         {session.user.name ?? session.user.email}
       </span>
-      {isAdmin && <span className="text-sm text-red-400">admin</span>}
+      {isAdmin ? (
+        <span className="text-sm text-red-400">admin</span>
+      ) : canReviewFraud ? (
+        <span className="text-sm text-zinc-500">moderator</span>
+      ) : (
+        <span className="text-sm text-zinc-500">buyer</span>
+      )}
       <a
         href="/auth/logout"
         className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors py-2 sm:py-0"
