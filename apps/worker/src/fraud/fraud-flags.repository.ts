@@ -79,7 +79,7 @@ export class FraudFlagsRepository {
       select: { id: true },
     });
 
-    if (data.embedding) {
+    if (data.embedding && data.embedding.length > 0) {
       const vectorStr = `[${data.embedding.join(",")}]`;
       await this.prisma.db.$executeRawUnsafe(
         `UPDATE fraud_flags SET embedding = '${vectorStr}'::vector WHERE id = $1`,

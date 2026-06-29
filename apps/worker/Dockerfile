@@ -28,5 +28,9 @@ FROM base AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
 COPY --from=build /app /app
+# pnpm deploy --ignore-scripts skips sharp's postinstall that downloads the prebuilt .node binary.
+# Re-run install/check.js from each sharp package root to fetch the correct linux-x64 binary.
+RUN find /app/node_modules -name "check.js" -path "*/sharp/install/check.js" | \
+    while read f; do (cd "${f%/install/check.js}" && node install/check.js); done
 EXPOSE 3002
 CMD ["node", "dist/main.js"]
