@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-zinc-950 text-zinc-50 antialiased;
+  }
+
+  /* datetime-local inputs look broken on dark backgrounds without this */
+  input[type="datetime-local"] {
+    color-scheme: dark;
+  }
+}

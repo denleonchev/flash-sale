@@ -27,22 +27,24 @@ export function LiveStock({
   const orderStatus = useOrderResult(saleId);
 
   if (stock <= 0) {
-    return (
-      <p>
-        <strong>Sold out</strong>
-      </p>
-    );
+    return <p className="text-center text-zinc-400 font-semibold py-2">Sold out</p>;
   }
 
   return (
-    <>
-      <p>
-        <strong>Live</strong> — {stock} left
-      </p>
-      <p>
-        Ends in <Countdown targetAt={endsAt} serverNow={serverNow} />
-      </p>
+    <div className="space-y-5">
+      <div className="flex items-end justify-between">
+        <div>
+          <p className="text-xs text-zinc-500 uppercase tracking-wide mb-1">Ends in</p>
+          <p className="font-mono text-2xl font-bold text-zinc-50">
+            <Countdown targetAt={endsAt} serverNow={serverNow} />
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-xs text-zinc-500 uppercase tracking-wide mb-1">Remaining</p>
+          <p className="font-mono text-2xl font-bold text-red-400">{stock}</p>
+        </div>
+      </div>
       <BuyButton saleId={saleId} signedIn={signedIn} orderStatus={orderStatus} />
-    </>
+    </div>
   );
 }

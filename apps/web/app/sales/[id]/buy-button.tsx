@@ -36,7 +36,14 @@ export function BuyButton({ saleId, signedIn, orderStatus }: Props) {
 
   // FR-6: signed-out buyers are asked to sign in; no order can be placed.
   if (!signedIn) {
-    return <a href={`/auth/login?returnTo=/sales/${saleId}`}>Sign in to buy</a>;
+    return (
+      <a
+        href={`/auth/login?returnTo=/sales/${saleId}`}
+        className="flex w-full items-center justify-center rounded-md bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-100 font-semibold py-3 transition-colors"
+      >
+        Sign in to buy
+      </a>
+    );
   }
 
   if (stripePromise) {
@@ -62,8 +69,12 @@ function StripeBuyForm({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  if (orderStatus === ORDER_STATUSES.CONFIRMED) return <p>Confirmed!</p>;
-  if (orderStatus === ORDER_STATUSES.SOLD_OUT) return <p>Sold out</p>;
+  if (orderStatus === ORDER_STATUSES.CONFIRMED) {
+    return <p className="text-center text-emerald-400 font-semibold py-2">✓ Order confirmed!</p>;
+  }
+  if (orderStatus === ORDER_STATUSES.SOLD_OUT) {
+    return <p className="text-center text-zinc-400 py-2">Sold out</p>;
+  }
 
   const isProcessing = isPending || orderStatus === ORDER_STATUSES.IN_PROGRESS;
 
@@ -102,14 +113,35 @@ function StripeBuyForm({
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <CardElement options={{ hidePostalCode: true, disabled: isProcessing }} />
-      <button type="submit" disabled={isProcessing || !stripe}>
-        {isProcessing ? "Processing…" : "Buy"}
+    <form onSubmit={handleSubmit} className="space-y-3">
+      <div className="rounded-md border border-zinc-700 bg-zinc-800 px-3 py-3">
+        <CardElement
+          options={{
+            hidePostalCode: true,
+            disabled: isProcessing,
+            style: {
+              base: {
+                color: "#fafafa",
+                fontFamily: "inherit",
+                fontSize: "14px",
+                "::placeholder": { color: "#71717a" },
+              },
+            },
+          }}
+        />
+      </div>
+      <button
+        type="submit"
+        disabled={isProcessing || !stripe}
+        className="w-full py-3 rounded-md bg-red-600 hover:bg-red-500 disabled:bg-zinc-800 disabled:text-zinc-600 text-white font-semibold transition-colors"
+      >
+        {isProcessing ? "Processing…" : "Buy now"}
       </button>
-      {error && <p>{error}</p>}
+      {error && <p className="text-red-400 text-sm text-center">{error}</p>}
       {!isPending && orderStatus === ORDER_STATUSES.FAILED && !error && (
-        <p>Payment failed. Please try again with a different card.</p>
+        <p className="text-red-400 text-sm text-center">
+          Payment failed. Please try again with a different card.
+        </p>
       )}
     </form>
   );
@@ -125,8 +157,12 @@ function SimpleBuyForm({
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  if (orderStatus === ORDER_STATUSES.CONFIRMED) return <p>Confirmed!</p>;
-  if (orderStatus === ORDER_STATUSES.SOLD_OUT) return <p>Sold out</p>;
+  if (orderStatus === ORDER_STATUSES.CONFIRMED) {
+    return <p className="text-center text-emerald-400 font-semibold py-2">✓ Order confirmed!</p>;
+  }
+  if (orderStatus === ORDER_STATUSES.SOLD_OUT) {
+    return <p className="text-center text-zinc-400 py-2">Sold out</p>;
+  }
 
   const isProcessing = isPending || orderStatus === ORDER_STATUSES.IN_PROGRESS;
 
@@ -141,14 +177,18 @@ function SimpleBuyForm({
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <button type="submit" disabled={isProcessing}>
-        {isProcessing ? "Processing…" : "Buy"}
+    <form onSubmit={handleSubmit} className="space-y-3">
+      <button
+        type="submit"
+        disabled={isProcessing}
+        className="w-full py-3 rounded-md bg-red-600 hover:bg-red-500 disabled:bg-zinc-800 disabled:text-zinc-600 text-white font-semibold transition-colors"
+      >
+        {isProcessing ? "Processing…" : "Buy now"}
       </button>
       {!isPending && orderStatus === ORDER_STATUSES.FAILED && (
-        <p>Order failed. Please try again.</p>
+        <p className="text-red-400 text-sm text-center">Order failed. Please try again.</p>
       )}
-      {error && <p>{error}</p>}
+      {error && <p className="text-red-400 text-sm text-center">{error}</p>}
     </form>
   );
 }
