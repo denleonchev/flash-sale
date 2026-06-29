@@ -14,7 +14,9 @@ export class FraudScreeningProcessor extends WorkerHost {
   }
 
   async process(job: Job<FraudScreeningJobPayload>): Promise<void> {
+    this.logger.log(`fraud-screening job ${job.id} started for order ${job.data.orderId}`);
     await this.service.screen(job.data);
+    this.logger.log(`fraud-screening job ${job.id} completed`);
   }
 
   @OnWorkerEvent("failed")

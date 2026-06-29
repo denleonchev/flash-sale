@@ -22,6 +22,7 @@ export class FraudScreeningService {
     const { vector, similar } = await this.fetchSimilar(pattern);
     const { risk, reason } = await this.classify(orderId, pattern, similar);
 
+    this.logger.log(`fraud screen order ${orderId}: risk=${risk}`);
     if (([RISK_LEVELS.MEDIUM, RISK_LEVELS.HIGH] as RiskLevel[]).includes(risk)) {
       await this.repo.createFlag({
         orderId,
@@ -32,6 +33,7 @@ export class FraudScreeningService {
         pattern,
         embedding: vector ?? [],
       });
+      this.logger.log(`fraud flag created for order ${orderId} risk=${risk}`);
     }
   }
 
