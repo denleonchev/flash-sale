@@ -142,10 +142,15 @@ jobs:
 
       - name: Deploy via IAP tunnel
         run: |
-          gcloud compute ssh deployer@${{ secrets.GCP_VM_NAME }} \
-            --project=${{ secrets.GCP_PROJECT }} \
+          gcloud compute start-iap-tunnel ${{ secrets.GCP_VM_NAME }} 22 \
+            --local-host-port=localhost:2222 \
             --zone=${{ secrets.GCP_ZONE }} \
-            --tunnel-through-iap \
-            --command="bash /home/deployer/deploy.sh"
-            --ssh-key-file=~/.ssh/deploy_key \
-            --strict-host-key-checking=no \
+            --project=${{ secrets.GCP_PROJECT }} &
+
+          sleep 3
+
+          ssh -i ~/.ssh/deploy_key \
+            -p 2222 \
+            -o StrictHostKeyChecking=no \
+            deployer@localhost \
+            "bash /home/deployer/deploy.sh"
