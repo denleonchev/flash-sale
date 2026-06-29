@@ -38,7 +38,7 @@ External managed dependencies:
                             │  HTTP + Socket.IO (single public origin)
                             ▼
                      ┌──────────────┐
-                     │    nginx     │  reverse proxy (only public entry)
+                     │    caddy     │  reverse proxy + TLS (only public entry)
                      └───┬───────┬──┘
           / (pages, buy) │       │ /socket.io (WS upgrade)
                          ▼       ▼
@@ -56,13 +56,13 @@ External managed dependencies:
                                  cache)
 ```
 
-A single **nginx** reverse proxy is the only public entry (see §8): it routes page
-and BFF traffic to **web** and the `/socket.io` WebSocket to **api**. So the browser
-sees one origin, and the api's REST endpoints are **never exposed publicly** — web
-reaches them server-side over the internal network. The Socket.IO connection is the
-only browser-side path that reaches api (proxied by nginx); all other client HTTP
-goes through web, which forwards Buy to api server-side and must sit next to api on
-the hot path. The `api` accepts requests fast and never does heavy work inline; the
+A single **Caddy** reverse proxy is the only public entry (see §8): it terminates
+TLS, routes page and BFF traffic to **web** and the `/socket.io` WebSocket to **api**.
+So the browser sees one origin, and the api's REST endpoints are **never exposed
+publicly** — web reaches them server-side over the internal network. The Socket.IO
+connection is the only browser-side path that reaches api (proxied by Caddy); all
+other client HTTP goes through web, which forwards Buy to api server-side and must
+sit next to api on the hot path. The `api` accepts requests fast and never does heavy work inline; the
 `worker` does the slow, careful work in the background. They share no in-memory
 state — they communicate only through the queue and Redis pub/sub.
 (NFR-3, NFR-9, NFR-10, NFR-11)
@@ -234,19 +234,20 @@ the core flow works fully without them. (NFR-13)
 
 ## 8. Deployment
 
-- **nginx**, **web**, **api**, and **worker** all run on a **GCP e2-micro** VM via
+- **Caddy**, **web**, **api**, and **worker** all run on a **GCP e2-micro** VM via
   `docker-compose`.
 - Stateful services are external managed dependencies: Postgres/pgvector on
   Supabase, Redis on Upstash. Only the three Node processes (web, api, worker) and a
-  lightweight nginx (~10 MB) run on the VM, so ~1 GB RAM is enough. (NFR-15)
+  lightweight Caddy (~50 MB) run on the VM, so ~1 GB RAM is enough. (NFR-15)
 - **web** runs as a dynamic Next.js Node server, **co-located with api** (same VM):
   it SSRs pages and proxies all client HTTP — including the Buy hot path — to api,
   so it must sit next to api to keep that hop cheap. It holds no application state.
   (NFR-3)
-- **nginx** is the single public entry (reverse proxy): `/socket.io` → api (with WS
-  upgrade), everything else → web. The api's REST endpoints are **not** exposed
-  publicly — web reaches them over the internal docker network. One browser origin,
-  and api's HTTP surface stays private. (NFR-9)
+- **Caddy** is the single public entry (reverse proxy + automatic TLS via Let's
+  Encrypt): `/socket.io` → api (WS upgrade handled natively), everything else → web.
+  The api's REST endpoints are **not** exposed publicly — web reaches them over the
+  internal docker network. One browser origin, and api's HTTP surface stays private.
+  (NFR-9)
 - Secrets come from environment configuration, never the repo. (NFR-8)
 - A swap file on the VM is a safety margin against OOM during install/build.
 

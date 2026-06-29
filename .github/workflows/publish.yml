@@ -35,7 +35,7 @@ jobs:
               - 'tsconfig.base.json'
             infra:
               - 'docker-compose.prod.yml'
-              - 'nginx/**'
+              - 'Caddyfile'
               - '.github/workflows/**'
 
   build-api:

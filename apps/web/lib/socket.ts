@@ -3,8 +3,8 @@ import { io, type Socket } from "socket.io-client";
 /**
  * Where the browser opens its Socket.IO connection — the only browser→api path (§1).
  * In production it is left unset: `io(undefined)` connects to the page's own origin
- * and nginx routes `/socket.io` to api, so api's address is never exposed and no CORS
- * is needed. In dev there is no nginx, so `NEXT_PUBLIC_SOCKET_URL` points straight at
+ * and Caddy routes `/socket.io` to api, so api's address is never exposed and no CORS
+ * is needed. In dev there is no Caddy, so `NEXT_PUBLIC_SOCKET_URL` points straight at
  * api (e.g. http://localhost:3001). Must be `NEXT_PUBLIC_*` to reach the client. (NFR-8)
  */
 export function getSocketUrl(): string | undefined {

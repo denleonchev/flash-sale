@@ -3,25 +3,33 @@
 # Images are built by GitHub Actions and published to GHCR.
 # Deploy is triggered by CI via IAP tunnel: pull + docker compose up -d.
 #
-# Runs nginx / web / api / worker in containers on a single host. The databases are NOT
+# Runs caddy / web / api / worker in containers on a single host. The databases are NOT
 # here — they are external managed services (Supabase Postgres + Upstash Redis),
 # reached via DATABASE_URL / REDIS_URL in .env (technical-design §8).
 #
 # All config (incl. the external DB URLs) comes from .env. No secrets in this file.
 #
-# Traffic routing (nginx is the only service published to the host):
+# Traffic routing (caddy is the only service published to the host):
 #   /socket.io/  → api  (WebSocket)
 #   /webhooks/   → api  (payment callbacks)
 #   /            → web  (Next.js SSR + BFF)
-#   web/api are reachable only through nginx — not published to the host.
+#   web/api are reachable only through caddy — not published to the host.
+#
+# HTTPS: Caddy provisions a Let's Encrypt cert automatically on first start.
+# Requirement: the domain in Caddyfile must resolve to this server's IP before deploy.
 
 services:
-  nginx:
-    image: nginx:alpine
+  caddy:
+    image: caddy:2-alpine
     ports:
       - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
     volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data      # persists certs across restarts
+      - caddy_config:/config
     depends_on:
       web:
         condition: service_healthy
@@ -32,7 +40,7 @@ services:
   web:
     image: ghcr.io/denleonchev/flash-sale-web:latest
     env_file: .env
-    # Next standalone server listens on $PORT; reachable only through nginx.
+    # Next standalone server listens on $PORT; reachable only through caddy.
     environment:
       PORT: ${WEB_PORT}
     expose:
@@ -51,7 +59,7 @@ services:
   api:
     image: ghcr.io/denleonchev/flash-sale-api:latest
     env_file: .env
-    # api listens on $API_PORT; reachable only through nginx.
+    # api listens on $API_PORT; reachable only through caddy.
     expose:
       - "${API_PORT}"
     restart: unless-stopped
@@ -77,3 +85,7 @@ services:
       timeout: 5s
       retries: 5
       start_period: 15s
+
+volumes:
+  caddy_data:
+  caddy_config:

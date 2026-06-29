@@ -20,7 +20,7 @@ import { SalesService } from "../sales/sales.service.js";
 import { OrdersService } from "../orders/orders.service.js";
 import { getBuyerId } from "./socket-ticket.js";
 
-/** `cors.origin: true` only matters in dev (no nginx). (NFR-10) */
+/** `cors.origin: true` only matters in dev (no Caddy). (NFR-10) */
 @WebSocketGateway({ cors: { origin: true } })
 export class SaleGateway implements OnGatewayConnection {
   private readonly logger = new Logger(SaleGateway.name);

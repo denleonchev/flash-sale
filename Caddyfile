@@ -1,0 +1,16 @@
+{$DOMAIN} {
+	# WebSocket — Socket.IO upgrade handled automatically by Caddy.
+	handle /socket.io/* {
+		reverse_proxy api:3001
+	}
+
+	# Webhooks — payment provider callbacks.
+	handle /webhooks/* {
+		reverse_proxy api:3001
+	}
+
+	# Everything else → Next.js.
+	handle {
+		reverse_proxy web:3000
+	}
+}
