@@ -23,10 +23,11 @@ RUN pnpm --filter @flash-sale/worker build
 # --ignore-scripts: prisma client is already generated above; skipping postinstall
 # avoids "prisma: not found" — prisma is a devDep and is absent in the prod deploy.
 RUN pnpm --filter @flash-sale/worker deploy --prod --ignore-scripts /app
-# sharp's prebuilt .node binary is downloaded by its install script and is NOT stored in
-# pnpm's content store, so pnpm deploy omits it. Copy it from the build-stage node_modules.
-RUN find /repo/node_modules/.pnpm -path "*/sharp/build/Release/*.node" | while read f; do \
-      target="/app${f#/repo}"; mkdir -p "$(dirname "$target")"; cp "$f" "$target"; \
+# sharp's prebuilt binaries (*.node + bundled libvips *.so) are downloaded by its install
+# script and are NOT in pnpm's content store, so pnpm deploy omits them. Copy the entire
+# build/Release dir from the build-stage node_modules.
+RUN find /repo/node_modules/.pnpm -path "*/sharp/build/Release" -type d | while read d; do \
+      target="/app${d#/repo}"; mkdir -p "$target"; cp -r "$d/." "$target/"; \
     done
 
 FROM base AS runtime
