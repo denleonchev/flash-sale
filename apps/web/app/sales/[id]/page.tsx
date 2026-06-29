@@ -33,7 +33,7 @@ export default async function SalePage({ params }: { params: Promise<{ id: strin
     <main className="max-w-2xl mx-auto px-4 py-10">
       <Link
         href="/sales"
-        className="inline-flex items-center gap-1.5 text-zinc-500 hover:text-zinc-300 text-sm mb-8 transition-colors"
+        className="inline-flex items-center gap-1.5 text-zinc-500 hover:text-zinc-300 text-lg sm:text-sm mb-8 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />
         Back to sales

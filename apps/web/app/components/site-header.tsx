@@ -9,23 +9,26 @@ export async function SiteHeader() {
 
   const logo = (
     <Link
-      href="/sales"
-      className="flex items-center gap-2 font-bold text-zinc-50 hover:text-red-400 transition-colors"
+      href="/"
+      className="flex items-center gap-2 font-bold text-lg text-zinc-50 hover:text-red-400 transition-colors"
     >
-      <Zap className="w-5 h-5 text-red-500 fill-red-500" />
+      <Zap className="w-6 h-6 text-red-500 fill-red-500" />
       <span>FLASH SALE</span>
     </Link>
   );
 
   const navLinks = (
     <>
-      <Link href="/sales" className="text-zinc-400 hover:text-zinc-50 transition-colors">
+      <Link
+        href="/sales"
+        className="text-base text-zinc-400 hover:text-zinc-50 transition-colors sm:text-sm py-2 sm:py-0"
+      >
         Catalog
       </Link>
       {canReviewFraud && (
         <Link
           href="/admin/fraud-flags"
-          className="text-zinc-400 hover:text-zinc-50 transition-colors"
+          className="text-base text-zinc-400 hover:text-zinc-50 transition-colors sm:text-sm py-2 sm:py-0"
         >
           Fraud flags
         </Link>
@@ -38,10 +41,10 @@ export async function SiteHeader() {
       <span className="text-zinc-50 font-medium truncate">
         {session.user.name ?? session.user.email}
       </span>
-      {isAdmin && <span className="text-xs text-red-400">admin</span>}
+      {isAdmin && <span className="text-sm text-red-400">admin</span>}
       <a
         href="/auth/logout"
-        className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
+        className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors py-2 sm:py-0"
       >
         Sign out
       </a>
@@ -59,10 +62,10 @@ export async function SiteHeader() {
     <header className="sticky top-0 z-10 border-b border-zinc-800 bg-zinc-950/80 backdrop-blur-sm">
       <div className="max-w-5xl mx-auto px-4">
         {/* ── Mobile (< sm): 3 rows ── */}
-        <div className="sm:hidden py-3 flex flex-col gap-2 text-sm">
-          <div className="flex justify-center">{logo}</div>
-          <nav className="flex items-center justify-center gap-4">{navLinks}</nav>
-          <div className="flex items-center justify-center gap-3">{userRow}</div>
+        <div className="sm:hidden py-4 flex flex-col gap-3">
+          <div className="flex justify-center py-1">{logo}</div>
+          <nav className="flex items-center justify-center gap-6">{navLinks}</nav>
+          <div className="flex items-center justify-center gap-4">{userRow}</div>
         </div>
 
         {/* ── Desktop (sm+): single row ── */}
