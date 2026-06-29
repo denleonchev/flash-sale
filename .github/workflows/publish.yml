@@ -140,6 +140,12 @@ jobs:
 
       - uses: google-github-actions/setup-gcloud@v2
 
+      - name: Add SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.GCP_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
       - name: Deploy via IAP tunnel
         run: |
           gcloud compute start-iap-tunnel ${{ secrets.GCP_VM_NAME }} 22 \
