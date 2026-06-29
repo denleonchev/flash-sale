@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { SiteHeader } from "./components/site-header";
+import { SiteHeader } from "./site-header";
 import "./globals.css";
 
 export const metadata = {
