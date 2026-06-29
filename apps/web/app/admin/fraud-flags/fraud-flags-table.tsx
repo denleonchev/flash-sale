@@ -27,7 +27,7 @@ export function FraudFlagsTable({ flags }: { flags: FraudFlag[] }) {
 
   return (
     <div className="overflow-x-auto rounded-lg border border-zinc-800">
-      <table className="w-full text-sm">
+      <table className="min-w-[640px] w-full text-sm">
         <thead>
           <tr className="border-b border-zinc-800 bg-zinc-900/50">
             {["Risk", "Buyer", "Sale", "Reason", "Status", "Created", ""].map((h) => (

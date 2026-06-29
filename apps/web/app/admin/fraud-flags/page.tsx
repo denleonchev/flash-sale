@@ -16,7 +16,7 @@ export default async function FraudFlagsPage({
   const flags = await listFraudFlagsAction(status);
 
   return (
-    <main className="max-w-5xl mx-auto px-4 py-10">
+    <main className="max-w-5xl mx-auto px-4 pt-4 pb-14 sm:pt-8 overflow-x-hidden">
       <h1 className="text-3xl font-bold text-zinc-50 mb-6">Fraud flags</h1>
       <nav className="flex gap-1 mb-6">
         <NavLink href="/admin/fraud-flags" active={!status}>
