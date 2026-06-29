@@ -9,6 +9,8 @@ export function CreateSaleForm() {
   const [state, formAction, pending] = useActionState(createSaleAction, initialState);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [startsAt, setStartsAt] = useState("");
+  const [endsAt, setEndsAt] = useState("");
   const [improving, setImproving] = useState(false);
   const [improveError, setImproveError] = useState<string | null>(null);
 
@@ -40,20 +42,8 @@ export function CreateSaleForm() {
   const inputClass =
     "w-full px-3 py-2 rounded-md bg-zinc-900 border border-zinc-800 text-zinc-50 placeholder:text-zinc-600 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent disabled:opacity-50 transition-colors";
 
-  // datetime-local gives "YYYY-MM-DDTHH:mm" without timezone. The browser's
-  // new Date(string) treats it as local time → .toISOString() converts to UTC.
-  // Without this the server would re-parse the bare string as UTC, shifting by
-  // the user's UTC offset.
-  function normalizeDates(e: React.FormEvent<HTMLFormElement>) {
-    const form = e.currentTarget;
-    for (const name of ["startsAt", "endsAt"]) {
-      const input = form.elements.namedItem(name) as HTMLInputElement | null;
-      if (input?.value) input.value = new Date(input.value).toISOString();
-    }
-  }
-
   return (
-    <form action={formAction} onSubmit={normalizeDates} className="space-y-5">
+    <form action={formAction} className="space-y-5">
       <Field label="Title" htmlFor="title">
         <input
           id="title"
@@ -125,22 +115,30 @@ export function CreateSaleForm() {
         <Field label="Starts at" htmlFor="startsAt">
           <input
             id="startsAt"
-            name="startsAt"
             type="datetime-local"
             required
             disabled={busy}
+            value={startsAt}
+            onChange={(e) => setStartsAt(e.target.value)}
             className={inputClass}
+          />
+          <input
+            type="hidden"
+            name="startsAt"
+            value={startsAt ? new Date(startsAt).toISOString() : ""}
           />
         </Field>
         <Field label="Ends at" htmlFor="endsAt">
           <input
             id="endsAt"
-            name="endsAt"
             type="datetime-local"
             required
             disabled={busy}
+            value={endsAt}
+            onChange={(e) => setEndsAt(e.target.value)}
             className={inputClass}
           />
+          <input type="hidden" name="endsAt" value={endsAt ? new Date(endsAt).toISOString() : ""} />
         </Field>
       </div>
 
