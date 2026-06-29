@@ -39,13 +39,13 @@ export function RoleSwitcher({ currentRole }: { currentRole: Role }) {
   }
 
   return (
-    <div className="fixed bottom-0 inset-x-0 z-50 border-t border-zinc-800 bg-zinc-900 px-4 py-2 flex items-center gap-3 text-xs text-zinc-400">
-      <span>Dev role:</span>
+    <div className="fixed bottom-0 inset-x-0 z-50 border-t border-zinc-800 bg-zinc-900 px-4 py-2.5 flex items-center justify-center gap-3 text-sm text-zinc-400">
+      <span>Change role:</span>
       <select
         value={currentRole}
         onChange={handleChange}
         disabled={loading}
-        className="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-zinc-200 text-xs disabled:opacity-50"
+        className="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-zinc-200 text-sm disabled:opacity-50"
       >
         {ROLES.map((r) => (
           <option key={r.value} value={r.value}>

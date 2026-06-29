@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export default function HomePage() {
   return (
-    <main className="min-h-[calc(100vh-3.5rem)] flex flex-col items-center justify-center px-4 text-center">
+    <main className="flex-1 flex flex-col items-center justify-center px-4 pb-10 text-center">
       <div className="max-w-md">
         <p className="text-red-500 text-xs font-semibold tracking-widest uppercase mb-4">
           Flash sales
