@@ -11,6 +11,7 @@ jobs:
       api: ${{ steps.filter.outputs.api }}
       web: ${{ steps.filter.outputs.web }}
       worker: ${{ steps.filter.outputs.worker }}
+      infra: ${{ steps.filter.outputs.infra }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -32,6 +33,10 @@ jobs:
               - 'packages/**'
               - 'pnpm-lock.yaml'
               - 'tsconfig.base.json'
+            infra:
+              - 'docker-compose.prod.yml'
+              - 'nginx/**'
+              - '.github/workflows/**'
 
   build-api:
     needs: changes
@@ -120,7 +125,8 @@ jobs:
       always() && (
         needs.build-api.result == 'success' ||
         needs.build-web.result == 'success' ||
-        needs.build-worker.result == 'success'
+        needs.build-worker.result == 'success' ||
+        needs.changes.outputs.infra == 'true'
       )
     runs-on: ubuntu-latest
     permissions:
