@@ -57,6 +57,26 @@ export function BuyButton({ saleId, signedIn, orderStatus }: Props) {
   return <SimpleBuyForm saleId={saleId} orderStatus={orderStatus} />;
 }
 
+function CopyCardButton({ label, number }: { label: string; number: string }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleClick = async () => {
+    await navigator.clipboard.writeText(number);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      className="flex-1 py-1.5 rounded-md border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs transition-colors"
+    >
+      {copied ? "Copied!" : label}
+    </button>
+  );
+}
+
 function StripeBuyForm({
   saleId,
   orderStatus,
@@ -114,6 +134,10 @@ function StripeBuyForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
+      <div className="flex gap-2">
+        <CopyCardButton label="Copy success card" number="4242424242424242" />
+        <CopyCardButton label="Copy fail card" number="4000000000000002" />
+      </div>
       <div className="rounded-md border border-zinc-700 bg-zinc-800 px-3 py-3">
         <CardElement
           options={{
