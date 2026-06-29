@@ -142,8 +142,10 @@ jobs:
 
       - name: Deploy via IAP tunnel
         run: |
-          gcloud compute ssh ${{ secrets.GCP_VM_NAME }} \
+          gcloud compute ssh deployer@${{ secrets.GCP_VM_NAME }} \
             --project=${{ secrets.GCP_PROJECT }} \
             --zone=${{ secrets.GCP_ZONE }} \
             --tunnel-through-iap \
-            --command="cd ~/flash-sale && docker compose -f docker-compose.prod.yml pull && docker compose -f docker-compose.prod.yml up -d"
+            --command="bash /home/deployer/deploy.sh"
+            --ssh-key-file=~/.ssh/deploy_key \
+            --strict-host-key-checking=no \
