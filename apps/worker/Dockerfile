@@ -34,7 +34,7 @@ ENV NODE_ENV=production
 WORKDIR /app
 # libvips is a runtime dependency of sharp (used by @xenova/transformers for embeddings).
 # node:22-slim doesn't include it; the bundled .so files in build/Release need it too.
-RUN apt-get update && apt-get install -y --no-install-recommends libvips42 && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends libvips42 wget && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app /app
 EXPOSE 3002
 CMD ["node", "dist/main.js"]

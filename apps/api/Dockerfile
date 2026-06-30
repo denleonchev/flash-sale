@@ -30,7 +30,7 @@ RUN find /repo/node_modules/.pnpm -path "*/sharp/build/Release" -type d | while 
 FROM base AS runtime
 ENV NODE_ENV=production
 WORKDIR /app
-RUN apt-get update && apt-get install -y --no-install-recommends libvips42 && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y --no-install-recommends libvips42 wget && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app /app
 EXPOSE 3001
 CMD ["node", "dist/main.js"]
