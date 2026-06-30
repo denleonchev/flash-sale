@@ -26,7 +26,7 @@ export default async function CatalogPage({
   const isAdmin = session?.isAdmin ?? false;
 
   return (
-    <main className="max-w-5xl mx-auto px-4 py-10">
+    <main className="w-full max-w-5xl mx-auto px-4 py-10">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold text-zinc-50">Sales</h1>
         {isAdmin && (
