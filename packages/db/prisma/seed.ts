@@ -46,10 +46,19 @@ async function seed(): Promise<void> {
         title: "Live Drop — Limited Sneakers",
         description:
           "Exclusive limited-edition athletic shoes. Streetwear sneakers with unique colorway, hyped footwear drop for collectors and fashion enthusiasts.",
-        stockTotal: 5,
+        stockTotal: 100,
         priceCents: 14900,
         startsAt: new Date(Date.now() - HOUR),
-        endsAt: new Date(Date.now() + HOUR),
+        endsAt: new Date(Date.now() + 60 * DAY),
+      },
+      {
+        title: "Live Drop — Wireless Noise-Cancelling Headphones",
+        description:
+          "Over-ear headphones with active noise cancellation, 40-hour battery life, and Bluetooth 5.3. Limited drop — once they're gone, they're gone.",
+        stockTotal: 100,
+        priceCents: 14900,
+        startsAt: new Date(Date.now() - HOUR),
+        endsAt: new Date(Date.now() + 2 * 80 * DAY),
       },
       {
         title: "Past Drop — Concert Tickets",
