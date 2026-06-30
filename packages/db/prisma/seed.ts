@@ -8,6 +8,7 @@
  */
 import { config } from "dotenv";
 import path from "path";
+import { Queue } from "bullmq";
 import { PrismaClient } from "../generated/client/index.js";
 import { PrismaPg } from "@prisma/adapter-pg";
 
@@ -16,6 +17,9 @@ config({ path: path.resolve(__dirname, "../../../.env") });
 // Prisma 7 requires a driver adapter (NFR-8: URL from DATABASE_URL env var).
 const adapter = new PrismaPg({ connectionString: process.env["DATABASE_URL"]! });
 const prisma = new PrismaClient({ adapter });
+
+const EMBED_SALE_QUEUE = "embed-sales";
+const EMBED_SALE_JOB = "embed-sale";
 
 const DAY = 24 * 60 * 60 * 1000;
 const HOUR = 60 * 60 * 1000;
@@ -60,11 +64,37 @@ async function seed(): Promise<void> {
     ],
   });
 
+  const redisUrl = process.env["REDIS_URL"];
+  if (!redisUrl) throw new Error("REDIS_URL is not set");
+
+  const embedQueue = new Queue(EMBED_SALE_QUEUE, {
+    connection: { url: redisUrl },
+  });
+
+  await Promise.all(
+    sales.map((s) =>
+      embedQueue.add(
+        EMBED_SALE_JOB,
+        { saleId: s.id, title: s.title, description: s.description ?? undefined },
+        {
+          jobId: s.id,
+          removeOnComplete: true,
+          removeOnFail: 50,
+          attempts: 3,
+          backoff: { type: "exponential", delay: 1_000 },
+        },
+      ),
+    ),
+  );
+
+  await embedQueue.close();
+
   console.log("\nSeeded sales:");
   for (const s of sales) {
     console.log(`  ${s.id}  ${s.title}`);
     console.log(`    http://localhost:3000/sales/${s.id}`);
   }
+  console.log(`\nEnqueued ${sales.length} embed jobs → worker will populate embeddings.`);
 }
 
 seed()
