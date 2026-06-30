@@ -35,6 +35,8 @@ async function seed(): Promise<void> {
     data: [
       {
         title: "Upcoming Drop — Vintage Watch",
+        description:
+          "A rare antique timepiece from the 1960s. Classic old-school design, mechanical movement, collectible wristwatch for horology enthusiasts.",
         stockTotal: 10,
         priceCents: 29900,
         startsAt: new Date(Date.now() + DAY),
@@ -42,6 +44,8 @@ async function seed(): Promise<void> {
       },
       {
         title: "Live Drop — Limited Sneakers",
+        description:
+          "Exclusive limited-edition athletic shoes. Streetwear sneakers with unique colorway, hyped footwear drop for collectors and fashion enthusiasts.",
         stockTotal: 5,
         priceCents: 14900,
         startsAt: new Date(Date.now() - HOUR),
@@ -49,6 +53,8 @@ async function seed(): Promise<void> {
       },
       {
         title: "Past Drop — Concert Tickets",
+        description:
+          "Tickets to a live music concert event. Front-row seats for a band performance, show, gig — an unforgettable live entertainment experience.",
         stockTotal: 20,
         priceCents: 5900,
         startsAt: new Date(Date.now() - 2 * DAY),
@@ -56,6 +62,8 @@ async function seed(): Promise<void> {
       },
       {
         title: "Sold-out Drop — Signed Poster",
+        description:
+          "Hand-signed art print autographed by the artist. Memorabilia poster, framed collectible artwork, limited edition signed merchandise.",
         stockTotal: 0,
         priceCents: 9900,
         startsAt: new Date(Date.now() - HOUR),
