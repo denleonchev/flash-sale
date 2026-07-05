@@ -19,3 +19,14 @@ packages/db/generated/
 
 # Claude
 .claude/plans
+
+# VSCode
+.vscode/settings.json
+
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfvars
+crash.log
+crash.*.log
