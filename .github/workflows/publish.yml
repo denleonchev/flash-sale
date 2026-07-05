@@ -37,6 +37,7 @@ jobs:
               - 'docker-compose.prod.yml'
               - 'Caddyfile'
               - '.github/workflows/**'
+              - 'infra/**'
 
   build-api:
     needs: changes
