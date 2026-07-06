@@ -3,6 +3,12 @@ name: Build and publish Docker images
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Rebuild and push all images even if nothing relevant changed (e.g. to seed a new tag)
+        type: boolean
+        default: false
 
 jobs:
   changes:
@@ -41,7 +47,7 @@ jobs:
 
   build-api:
     needs: changes
-    if: needs.changes.outputs.api == 'true'
+    if: needs.changes.outputs.api == 'true' || inputs.force == true
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -73,7 +79,7 @@ jobs:
   # deploy-prod job below is gated.
   build-web-stage:
     needs: changes
-    if: needs.changes.outputs.web == 'true'
+    if: needs.changes.outputs.web == 'true' || inputs.force == true
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -101,7 +107,7 @@ jobs:
 
   build-web-prod:
     needs: changes
-    if: needs.changes.outputs.web == 'true'
+    if: needs.changes.outputs.web == 'true' || inputs.force == true
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -129,7 +135,7 @@ jobs:
 
   build-worker:
     needs: changes
-    if: needs.changes.outputs.worker == 'true'
+    if: needs.changes.outputs.worker == 'true' || inputs.force == true
     runs-on: ubuntu-latest
     permissions:
       contents: read
