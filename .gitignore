@@ -28,5 +28,6 @@ packages/db/generated/
 *.tfstate
 *.tfstate.*
 *.tfvars
+!*.tfvars.example
 crash.log
 crash.*.log

@@ -1,5 +1,5 @@
 resource "auth0_client" "web_app" {
-  name     = "flash-sale-web"
+  name     = "flash-sale-web-${var.environment}"
   app_type = "regular_web"
 
   callbacks = [
@@ -27,7 +27,7 @@ resource "auth0_client_credentials" "web_app" {
 }
 
 resource "auth0_client" "m2m_app" {
-  name     = "flash-sale-m2m"
+  name     = "flash-sale-m2m-${var.environment}"
   app_type = "non_interactive"
 }
 resource "auth0_client_credentials" "m2m_creds" {

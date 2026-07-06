@@ -2,6 +2,18 @@ variable "project_id" { type = string }
 variable "zone" { type = string }
 variable "region" { type = string }
 
+variable "environment" {
+  type = string
+  validation {
+    condition     = contains(["stage", "prod"], var.environment)
+    error_message = "environment must be \"stage\" or \"prod\"."
+  }
+}
+
+variable "deployer_ssh_public_key" {
+  type = string
+}
+
 variable "auth0_domain" {
   type = string
 }

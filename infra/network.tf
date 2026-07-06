@@ -37,7 +37,7 @@ resource "google_compute_address" "static-ip" {
 
 resource "cloudflare_dns_record" "flash_sale_app" {
   zone_id = var.cloudflare_zone_id
-  name    = "stg.flash"
+  name    = var.subdomain
   type    = "A"
   content = google_compute_address.static-ip.address
   ttl     = 1

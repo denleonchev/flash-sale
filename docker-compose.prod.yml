@@ -43,7 +43,10 @@ services:
         max-file: "3"
 
   web:
-    image: ghcr.io/denleonchev/flash-sale-web:latest
+    # web is the only image built per-environment (see publish.yml: it bakes a
+    # different Stripe test key into the client bundle for stage vs prod) — this
+    # VM's own .env pins WEB_IMAGE_TAG to "stage-latest" or "prod-latest".
+    image: ghcr.io/denleonchev/flash-sale-web:${WEB_IMAGE_TAG:-latest}
     env_file: .env
     # Next standalone server listens on $PORT; reachable only through caddy.
     environment:

@@ -20,7 +20,7 @@ resource "google_compute_instance" "default" {
   }
 
   metadata = {
-    ssh-keys = "deployer:ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMN3apwN+wWwVfSZ1kgZ71+k2m00JOxoV05rtnjp3Jwg github-actions-deploy"
+    ssh-keys = "deployer:${var.deployer_ssh_public_key}"
   }
 
   metadata_startup_script = file("${path.module}/scripts/startup.sh")

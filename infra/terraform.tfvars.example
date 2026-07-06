@@ -1,0 +1,40 @@
+# Example tfvars for the flash-sale infra. Copy per environment and fill in real
+# values — never commit the real files (see .gitignore: *.tfvars, excluding this
+# .example).
+#
+# Usage:
+#   Stage (existing "default" workspace):
+#     cp terraform.tfvars.example terraform.tfvars
+#     terraform apply
+#
+#   Prod (new workspace):
+#     terraform workspace new prod
+#     terraform workspace select prod
+#     cp terraform.tfvars.example terraform.prod.tfvars
+#     terraform apply -var-file=terraform.prod.tfvars
+
+# ── Differs per environment ──────────────────────────────────────────────────
+project_id  = "flash-sale-stg"   # prod: a separate GCP project, e.g. "flash-sale-prod"
+environment = "stage"            # "stage" | "prod"
+subdomain   = "stg.flash"         # prod: e.g. "flash" -> flash.bonadev.xyz
+
+# Public half of a keypair unique to this environment's deploy SSH key. Generate
+# with: ssh-keygen -t ed25519 -C "github-actions-deploy-<env>" -f deploy_key_<env>
+# The private half goes into the GCP_SSH_KEY secret for this environment.
+deployer_ssh_public_key = "ssh-ed25519 AAAA... github-actions-deploy-stage"
+
+# ── Shared across environments (same external accounts) ─────────────────────
+zone   = "us-east1-b"
+region = "us-east1"
+
+root_domain = "bonadev.xyz"
+
+# Auth0 tenant used to manage both environments' clients via the Terraform
+# provider (this is the *management* app credential, not the per-env web/m2m
+# clients that auth0.tf creates).
+auth0_domain        = "your-tenant.us.auth0.com"
+auth0_client_id     = ""
+auth0_client_secret = ""
+
+cloudflare_api_token = ""
+cloudflare_zone_id   = ""

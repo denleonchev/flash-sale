@@ -1,0 +1,60 @@
+name: Deploy
+
+on:
+  workflow_call:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Add SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.GCP_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+
+      - name: Deploy via IAP tunnel
+        run: |
+          gcloud compute start-iap-tunnel ${{ secrets.GCP_VM_NAME }} 22 \
+            --local-host-port=localhost:2222 \
+            --zone=${{ secrets.GCP_ZONE }} \
+            --project=${{ secrets.GCP_PROJECT }} &
+
+          sleep 3
+
+          ssh -i ~/.ssh/deploy_key \
+            -p 2222 \
+            -o StrictHostKeyChecking=no \
+            deployer@localhost bash -s <<'EOF'
+          set -e
+          cd /home/deployer/flash-sale
+          git pull origin main
+          docker compose -f docker-compose.prod.yml pull
+          docker compose -f docker-compose.prod.yml up -d --remove-orphans
+
+          MAX_WAIT=60
+          INTERVAL=5
+          ELAPSED=0
+          while [ $ELAPSED -lt $MAX_WAIT ]; do
+            if [ -z "$(docker compose -f docker-compose.prod.yml ps --status=exited --status=dead -q)" ]; then
+              echo "$(date): containers are up"
+              docker system prune -a -f
+              exit 0
+            fi
+            sleep $INTERVAL
+            ELAPSED=$((ELAPSED + INTERVAL))
+          done
+
+          echo "$(date): deployment failed, some containers are not running"
+          exit 1
+          EOF
