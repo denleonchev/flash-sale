@@ -2,10 +2,18 @@ name: Deploy
 
 on:
   workflow_call:
+    inputs:
+      environment_name:
+        required: true
+        type: string
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # environment: must live on the job that actually runs (this one), not on the
+    # caller job in publish.yml — "environment" isn't a supported keyword for a
+    # job that only calls a reusable workflow via `uses:`.
+    environment: ${{ inputs.environment_name }}
     permissions:
       contents: read
       id-token: write

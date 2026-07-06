@@ -166,8 +166,9 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    environment: stage
     uses: ./.github/workflows/deploy.yml
+    with:
+      environment_name: stage
     secrets: inherit
 
   deploy-prod:
@@ -183,9 +184,11 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    # "production" Environment has a required-reviewers protection rule (set up
-    # in repo Settings → Environments) — this job pauses for manual approval
-    # before production's secrets.GCP_* are resolved and the SSH deploy runs.
-    environment: production
     uses: ./.github/workflows/deploy.yml
+    with:
+      # "production" Environment has a required-reviewers protection rule (set up
+      # in repo Settings → Environments) — deploy.yml's job pauses for manual
+      # approval before production's secrets.GCP_* are resolved and the SSH
+      # deploy runs.
+      environment_name: production
     secrets: inherit
