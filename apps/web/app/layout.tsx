@@ -21,7 +21,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en" className="h-full">
       <body className="min-h-full flex flex-col bg-zinc-950 text-zinc-50 antialiased">
         <SiteHeader />
-        {children}
+        <div className="w-full max-w-5xl mx-auto px-4 flex-1 flex flex-col">{children}</div>
         <RoleSwitcherWrapper />
       </body>
     </html>

@@ -30,7 +30,7 @@ export default async function SalePage({ params }: { params: Promise<{ id: strin
   const priceUsd = (sale.priceCents / 100).toFixed(2);
 
   return (
-    <main className="max-w-2xl mx-auto px-4 py-10">
+    <main className="max-w-2xl mx-auto py-10">
       <Link
         href="/sales"
         className="inline-flex items-center gap-1.5 text-zinc-500 hover:text-zinc-300 text-lg sm:text-sm mb-8 transition-colors"
