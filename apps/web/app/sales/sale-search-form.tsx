@@ -41,24 +41,25 @@ export function SaleSearchForm({ initialQuery }: Props) {
       <button
         type="submit"
         disabled={isSearching}
-        className="px-4 py-2 rounded-md bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-100 text-sm font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed inline-flex items-center gap-2"
+        className="relative px-4 py-2 rounded-md bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-100 text-sm font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
       >
-        {isSearching && <Loader2 className="w-4 h-4 animate-spin" />}
-        Search
+        <span className={isSearching ? "invisible" : ""}>Search</span>
+        {isSearching && <Loader2 className="w-4 h-4 animate-spin absolute inset-0 m-auto" />}
       </button>
-      {initialQuery && (
-        <button
-          type="button"
-          onClick={() => {
-            setQuery("");
-            router.push("/sales");
-          }}
-          aria-label="Clear search"
-          className="p-2 rounded-md hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300 transition-colors"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={() => {
+          setQuery("");
+          router.push("/sales");
+        }}
+        aria-label="Clear search"
+        disabled={!initialQuery}
+        className={`p-2 rounded-md hover:bg-zinc-800 text-zinc-500 hover:text-zinc-300 transition-colors ${
+          initialQuery ? "visible" : "invisible"
+        }`}
+      >
+        <X className="w-4 h-4" />
+      </button>
     </form>
   );
 }
