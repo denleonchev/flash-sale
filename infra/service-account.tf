@@ -76,3 +76,11 @@ resource "google_project_iam_member" "vm_runtime_monitoring" {
 
   depends_on = [google_project_service.required]
 }
+
+resource "google_project_iam_member" "vm_runtime_trace" {
+  project = var.project_id
+  role    = "roles/cloudtrace.agent"
+  member  = "serviceAccount:${google_service_account.vm_runtime_sa.email}"
+
+  depends_on = [google_project_service.required]
+}

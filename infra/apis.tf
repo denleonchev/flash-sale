@@ -9,6 +9,7 @@ locals {
     "logging.googleapis.com",
     "monitoring.googleapis.com",
     "secretmanager.googleapis.com",
+    "cloudtrace.googleapis.com",
   ]
 }
 
