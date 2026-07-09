@@ -5,8 +5,17 @@ apt install -y ca-certificates curl git jq
 if ! id -u deployer >/dev/null 2>&1; then
   useradd -m -s /bin/bash deployer
 fi
-git clone https://github.com/denleonchev/flash-sale.git /home/deployer/flash-sale
-cd /home/deployer/flash-sale
+# Idempotent: startup-script re-runs on every boot (not just first create), and a `reset`
+# (unlike a full recreate) keeps the boot disk — so this directory already exists on any
+# boot after the first. A plain `git clone` would fail into a non-empty dir and, with `set -e`,
+# silently kill everything below it (.env fetch, Ops Agent) on every reset/reboot.
+if [ -d /home/deployer/flash-sale/.git ]; then
+  cd /home/deployer/flash-sale
+  git pull
+else
+  git clone https://github.com/denleonchev/flash-sale.git /home/deployer/flash-sale
+  cd /home/deployer/flash-sale
+fi
 
 # Add Docker's official GPG key:
 install -m 0755 -d /etc/apt/keyrings
