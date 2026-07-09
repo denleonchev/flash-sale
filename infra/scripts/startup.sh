@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 apt update
-apt install -y ca-certificates curl git
+apt install -y ca-certificates curl git jq
 if ! id -u deployer >/dev/null 2>&1; then
   useradd -m -s /bin/bash deployer
 fi
@@ -28,6 +28,20 @@ apt update
 apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 usermod -aG docker deployer
 chown -R deployer:deployer /home/deployer/flash-sale
+
+# .env survives VM recreation without ever passing through Terraform state (which is
+# committed to this repo): the value is pushed straight into Secret Manager via
+# `gcloud secrets versions add`, and fetched here on every boot using the VM's own identity.
+PROJECT_ID=$(curl -sf -H "Metadata-Flavor: Google" \
+  "http://metadata.google.internal/computeMetadata/v1/project/project-id")
+ACCESS_TOKEN=$(curl -sf -H "Metadata-Flavor: Google" \
+  "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token" \
+  | jq -r .access_token)
+curl -sf -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+  "https://secretmanager.googleapis.com/v1/projects/${PROJECT_ID}/secrets/flash-sale-env/versions/latest:access" \
+  | jq -r .payload.data | base64 -d > /home/deployer/flash-sale/.env
+chown deployer:deployer /home/deployer/flash-sale/.env
+chmod 600 /home/deployer/flash-sale/.env
 
 # Ops Agent: ships container logs to Cloud Logging and host metrics (incl. RAM/disk, which
 # GCE does not expose agentlessly) to Cloud Monitoring. Config comes from instance metadata
