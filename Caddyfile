@@ -1,4 +1,9 @@
 {$DOMAIN} {
+	log {
+		output stdout
+		format json
+	}
+
 	# WebSocket — Socket.IO upgrade handled automatically by Caddy.
 	handle /socket.io/* {
 		reverse_proxy api:3001
