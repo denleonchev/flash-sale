@@ -1,0 +1,13 @@
+logging:
+  receivers:
+    docker_containers:
+      type: files
+      include_paths: ["/var/lib/docker/containers/*/*-json.log"]
+  processors:
+    parse_json:
+      type: parse_json
+  service:
+    pipelines:
+      docker_pipeline:
+        receivers: [docker_containers]
+        processors: [parse_json]

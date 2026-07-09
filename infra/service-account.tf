@@ -53,3 +53,26 @@ resource "google_service_account_iam_member" "wif_binding" {
 
   depends_on = [google_project_service.required]
 }
+
+resource "google_service_account" "vm_runtime_sa" {
+  account_id   = "vm-runtime-sa"
+  display_name = "VM Runtime Service Account"
+
+  depends_on = [google_project_service.required]
+}
+
+resource "google_project_iam_member" "vm_runtime_logging" {
+  project = var.project_id
+  role    = "roles/logging.logWriter"
+  member  = "serviceAccount:${google_service_account.vm_runtime_sa.email}"
+
+  depends_on = [google_project_service.required]
+}
+
+resource "google_project_iam_member" "vm_runtime_monitoring" {
+  project = var.project_id
+  role    = "roles/monitoring.metricWriter"
+  member  = "serviceAccount:${google_service_account.vm_runtime_sa.email}"
+
+  depends_on = [google_project_service.required]
+}
