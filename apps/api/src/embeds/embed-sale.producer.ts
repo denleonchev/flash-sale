@@ -1,5 +1,6 @@
 import { InjectQueue } from "@nestjs/bullmq";
 import { Injectable, Logger } from "@nestjs/common";
+import { context, propagation } from "@opentelemetry/api";
 import { EMBED_SALE_JOB, EMBED_SALE_QUEUE, type EmbedSaleJobPayload } from "@flash-sale/shared";
 import { Queue } from "bullmq";
 
@@ -10,7 +11,15 @@ export class EmbedSaleProducer {
   constructor(@InjectQueue(EMBED_SALE_QUEUE) private readonly queue: Queue<EmbedSaleJobPayload>) {}
 
   async enqueueEmbedSale(saleId: string, title: string, description?: string): Promise<void> {
-    const payload: EmbedSaleJobPayload = { saleId, title, description };
+    const carrier: Record<string, string> = {};
+    propagation.inject(context.active(), carrier);
+
+    const payload: EmbedSaleJobPayload = {
+      saleId,
+      title,
+      description,
+      traceparent: carrier["traceparent"],
+    };
     // jobId: saleId collapses duplicates — BullMQ ignores a second add with the same jobId. (NFR-14)
     await this.queue.add(EMBED_SALE_JOB, payload, {
       jobId: saleId,

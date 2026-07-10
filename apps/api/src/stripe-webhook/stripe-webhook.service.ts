@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, Logger } from "@nestjs/common";
 import { InjectQueue } from "@nestjs/bullmq";
+import { context, propagation } from "@opentelemetry/api";
 import { Queue } from "bullmq";
 import Stripe from "stripe";
 import {
@@ -82,6 +83,9 @@ export class StripeWebhookService {
       return;
     }
 
+    const carrier: Record<string, string> = {};
+    propagation.inject(context.active(), carrier);
+
     // jobId = orderId makes this idempotent: duplicate webhook → BullMQ no-op. (NFR-2)
     await this.captureQueue.add(
       CAPTURE_ORDER_JOB,
@@ -91,6 +95,7 @@ export class StripeWebhookService {
         buyerId: order.buyerId,
         paymentIntentId: pi.id,
         idempotencyKey: order.idempotencyKey,
+        traceparent: carrier["traceparent"],
       },
       {
         jobId: order.id,

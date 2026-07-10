@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { InjectQueue } from "@nestjs/bullmq";
+import { context, propagation } from "@opentelemetry/api";
 import { Queue } from "bullmq";
 import {
   FRAUD_SCREENING_QUEUE,
@@ -15,12 +16,19 @@ export class FraudScreeningProducer {
   ) {}
 
   async enqueue(payload: FraudScreeningJobPayload): Promise<void> {
-    await this.queue.add(FRAUD_SCREENING_JOB, payload, {
-      jobId: payload.orderId,
-      removeOnComplete: true,
-      removeOnFail: 50,
-      attempts: 3,
-      backoff: { type: "exponential", delay: 2_000 },
-    });
+    const carrier: Record<string, string> = {};
+    propagation.inject(context.active(), carrier);
+
+    await this.queue.add(
+      FRAUD_SCREENING_JOB,
+      { ...payload, traceparent: carrier["traceparent"] },
+      {
+        jobId: payload.orderId,
+        removeOnComplete: true,
+        removeOnFail: 50,
+        attempts: 3,
+        backoff: { type: "exponential", delay: 2_000 },
+      },
+    );
   }
 }

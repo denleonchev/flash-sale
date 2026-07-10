@@ -4,6 +4,7 @@ import { EMBED_SALE_QUEUE, type EmbedSaleJobPayload } from "@flash-sale/shared";
 import { Job } from "bullmq";
 import { EmbeddingService } from "./embedding.service.js";
 import { SalesRepository } from "./sales.repository.js";
+import { runWithJobTrace } from "../tracing/with-job-trace.js";
 
 // concurrency: 1 keeps CPU load predictable on e2-micro. (NFR-14)
 @Processor(EMBED_SALE_QUEUE, { concurrency: 1, maxStalledCount: 3 })
@@ -18,11 +19,13 @@ export class EmbedSaleProcessor extends WorkerHost {
   }
 
   async process(job: Job<EmbedSaleJobPayload>): Promise<void> {
-    const { saleId, title, description } = job.data;
-    const text = [title, description].filter(Boolean).join(" ");
-    const vector = await this.embeddingService.embed(text);
-    await this.salesRepository.updateEmbedding(saleId, vector);
-    this.logger.log(`embedded sale ${saleId} (${vector.length} dims)`);
+    await runWithJobTrace(job.name, job.data, async () => {
+      const { saleId, title, description } = job.data;
+      const text = [title, description].filter(Boolean).join(" ");
+      const vector = await this.embeddingService.embed(text);
+      await this.salesRepository.updateEmbedding(saleId, vector);
+      this.logger.log(`embedded sale ${saleId} (${vector.length} dims)`);
+    });
   }
 
   @OnWorkerEvent("failed")

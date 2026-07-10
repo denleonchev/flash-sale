@@ -3,6 +3,7 @@ import { Logger } from "@nestjs/common";
 import { Job } from "bullmq";
 import { ORDER_QUEUE, CAPTURE_ORDER_JOB, type CaptureOrderJobPayload } from "@flash-sale/shared";
 import { CaptureOrderFinalizer } from "./order-capture.finalizer.js";
+import { runWithJobTrace } from "../tracing/with-job-trace.js";
 
 @Processor(ORDER_QUEUE, { concurrency: 1 })
 export class CaptureOrderProcessor extends WorkerHost {
@@ -14,7 +15,9 @@ export class CaptureOrderProcessor extends WorkerHost {
 
   async process(job: Job<CaptureOrderJobPayload>): Promise<void> {
     if (job.name !== CAPTURE_ORDER_JOB) return;
-    this.logger.log(`processing capture job ${job.id} for order ${job.data.orderId}`);
-    await this.finalizer.finalizeCapture(job.data);
+    await runWithJobTrace(job.name, job.data, async () => {
+      this.logger.log(`processing capture job ${job.id} for order ${job.data.orderId}`);
+      await this.finalizer.finalizeCapture(job.data);
+    });
   }
 }

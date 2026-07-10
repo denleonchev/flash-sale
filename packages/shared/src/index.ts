@@ -62,6 +62,7 @@ export interface CaptureOrderJobPayload {
   buyerId: string;
   paymentIntentId: string;
   idempotencyKey: string;
+  traceparent?: string;
 }
 
 export interface OrderResult {
@@ -118,6 +119,7 @@ export interface EmbedSaleJobPayload {
   saleId: string;
   title: string;
   description?: string;
+  traceparent?: string;
 }
 
 // FR-27: fraud screening queue (S-6.4 / S-6.5).
@@ -128,6 +130,7 @@ export interface FraudScreeningJobPayload {
   orderId: string;
   buyerId: string;
   saleId: string;
+  traceparent?: string;
 }
 
 export const RISK_LEVELS = { LOW: "low", MEDIUM: "medium", HIGH: "high" } as const;

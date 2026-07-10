@@ -33,4 +33,4 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends libvips42 wget && rm -rf /var/lib/apt/lists/*
 COPY --from=build /app /app
 EXPOSE 3001
-CMD ["node", "dist/main.js"]
+CMD ["node", "--import", "./dist/instrumentation.js", "dist/main.js"]
