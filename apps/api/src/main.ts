@@ -1,12 +1,15 @@
 import "reflect-metadata";
 import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
+import { Logger } from "nestjs-pino";
 import { AppModule } from "./app.module.js";
 import { RedisIoAdapter } from "./realtime/redis-io.adapter.js";
 
 async function bootstrap(): Promise<void> {
   // rawBody: true is required for Stripe webhook signature verification. (FR-12)
-  const app = await NestFactory.create(AppModule, { rawBody: true });
+  // bufferLogs: true holds bootstrap logs until app.useLogger attaches the pino logger below.
+  const app = await NestFactory.create(AppModule, { rawBody: true, bufferLogs: true });
+  app.useLogger(app.get(Logger));
   app.enableShutdownHooks();
   // Browser may connect to the socket from the web origin; reflect it. (NFR-10)
   app.enableCors({ origin: true });

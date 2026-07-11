@@ -1,4 +1,5 @@
 import { Module } from "@nestjs/common";
+import { AppLoggerModule } from "./logger/logger.module.js";
 import { DbModule } from "./db/db.module.js";
 import { HealthModule } from "./health/health.module.js";
 import { OrdersModule } from "./orders/orders.module.js";
@@ -14,6 +15,7 @@ import { StripeWebhookModule } from "./stripe-webhook/stripe-webhook.module.js";
  */
 @Module({
   imports: [
+    AppLoggerModule,
     DbModule,
     HealthModule,
     QueueModule,
