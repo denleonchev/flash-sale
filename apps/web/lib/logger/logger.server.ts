@@ -1,21 +1,32 @@
 import "server-only";
-import { fileURLToPath } from "node:url";
+import { Writable } from "node:stream";
 import pino from "pino";
+import { Logging } from "@google-cloud/logging";
 import { createGcpLoggingPinoConfig } from "@google-cloud/pino-logging-gcp-config";
 
 const projectId = process.env["GCP_PROJECT_ID"];
-const gcpTransportPath = fileURLToPath(new URL("./gcp-log-transport.js", import.meta.url));
+const gcpLog = projectId ? new Logging({ projectId }).log("web") : undefined;
 
-export const logger = pino({
-  ...createGcpLoggingPinoConfig(),
-  transport: {
-    targets: [
-      ...(projectId
-        ? [{ target: gcpTransportPath, options: { projectId, serviceName: "web" } }]
-        : []),
-      process.env["NODE_ENV"] === "production"
-        ? { target: "pino/file", options: { destination: 1 } }
-        : { target: "pino-pretty", options: { colorize: true } },
-    ],
+// Next.js bundles this file (webpack/turbopack), so pino's usual worker-thread
+// transport can't be used — it needs a real file on disk to spawn a worker
+// against, and the bundle doesn't preserve one. Writing to Cloud Logging directly
+// from a synchronous stream avoids that entirely (see apps/api/worker for the
+// file-based transport, which works there because tsc's output isn't bundled).
+const stream = new Writable({
+  write(chunk: Buffer, _encoding, callback) {
+    const line = chunk.toString();
+    process.stdout.write(line);
+    if (gcpLog) {
+      const { severity = "DEFAULT", ...jsonPayload } = JSON.parse(line) as Record<
+        string,
+        unknown
+      > & { severity?: string };
+      gcpLog
+        .write(gcpLog.entry({ severity }, jsonPayload))
+        .catch((err: unknown) => process.stderr.write(`gcp log write failed: ${String(err)}\n`));
+    }
+    callback();
   },
 });
+
+export const logger = pino(createGcpLoggingPinoConfig(), stream);

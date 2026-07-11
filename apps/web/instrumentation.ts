@@ -1,20 +1,7 @@
-import { format } from "node:util";
-import { registerOTel } from "@vercel/otel";
-
 export async function register(): Promise<void> {
-  const projectId = process.env["GCP_PROJECT_ID"];
-
-  if (projectId) {
-    const { TraceExporter } = await import("@google-cloud/opentelemetry-cloud-trace-exporter");
-    registerOTel({ serviceName: "web", traceExporter: new TraceExporter({ projectId }) });
-  } else {
-    registerOTel({ serviceName: "web" });
-  }
-
-  const { logger } = await import("./lib/logger/logger.server");
-  for (const level of ["log", "info", "warn", "error", "debug"] as const) {
-    const method = level === "log" ? "info" : level;
-    console[level] = (...args: unknown[]) => logger[method](format(...args));
+  if (process.env.NEXT_RUNTIME === "nodejs") {
+    const { registerNode } = await import("./instrumentation-node");
+    await registerNode();
   }
 }
 
@@ -22,6 +9,8 @@ export async function onRequestError(
   err: Error,
   request: { path: string; method: string },
 ): Promise<void> {
+  if (process.env.NEXT_RUNTIME !== "nodejs") return;
+
   const { logger } = await import("./lib/logger/logger.server");
   const { trace } = await import("@opentelemetry/api");
   trace.getActiveSpan()?.recordException(err);
