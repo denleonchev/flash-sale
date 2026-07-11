@@ -7,11 +7,6 @@ import { createGcpLoggingPinoConfig } from "@google-cloud/pino-logging-gcp-confi
 const projectId = process.env["GCP_PROJECT_ID"];
 const gcpLog = projectId ? new Logging({ projectId }).log("web") : undefined;
 
-// Next.js bundles this file (webpack/turbopack), so pino's usual worker-thread
-// transport can't be used — it needs a real file on disk to spawn a worker
-// against, and the bundle doesn't preserve one. Writing to Cloud Logging directly
-// from a synchronous stream avoids that entirely (see apps/api/worker for the
-// file-based transport, which works there because tsc's output isn't bundled).
 const stream = new Writable({
   write(chunk: Buffer, _encoding, callback) {
     const line = chunk.toString();
