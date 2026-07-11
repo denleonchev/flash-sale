@@ -83,28 +83,38 @@ export class StripeWebhookService {
       return;
     }
 
-    const carrier: Record<string, string> = {};
-    propagation.inject(context.active(), carrier);
+    // Stripe calls this webhook as its own, unrelated HTTP request — the buyer's original
+    // purchase trace is carried through as PI metadata (set in orders.service.ts) rather
+    // than this request's own (disconnected) trace.
+    const originTraceparent = pi.metadata["traceparent"];
+    const parentContext = originTraceparent
+      ? propagation.extract(context.active(), { traceparent: originTraceparent })
+      : context.active();
 
-    // jobId = orderId makes this idempotent: duplicate webhook → BullMQ no-op. (NFR-2)
-    await this.captureQueue.add(
-      CAPTURE_ORDER_JOB,
-      {
-        orderId: order.id,
-        saleId: order.saleId,
-        buyerId: order.buyerId,
-        paymentIntentId: pi.id,
-        idempotencyKey: order.idempotencyKey,
-        traceparent: carrier["traceparent"],
-      },
-      {
-        jobId: order.id,
-        removeOnComplete: true,
-        removeOnFail: 100,
-        attempts: 3,
-        backoff: { type: "exponential", delay: 1_000 },
-      },
-    );
+    await context.with(parentContext, async () => {
+      const carrier: Record<string, string> = {};
+      propagation.inject(context.active(), carrier);
+
+      // jobId = orderId makes this idempotent: duplicate webhook → BullMQ no-op. (NFR-2)
+      await this.captureQueue.add(
+        CAPTURE_ORDER_JOB,
+        {
+          orderId: order.id,
+          saleId: order.saleId,
+          buyerId: order.buyerId,
+          paymentIntentId: pi.id,
+          idempotencyKey: order.idempotencyKey,
+          traceparent: carrier["traceparent"],
+        },
+        {
+          jobId: order.id,
+          removeOnComplete: true,
+          removeOnFail: 100,
+          attempts: 3,
+          backoff: { type: "exponential", delay: 1_000 },
+        },
+      );
+    });
 
     this.logger.log(`enqueued capture job for order ${order.id}`);
   }

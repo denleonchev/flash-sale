@@ -1,4 +1,5 @@
 import { ConflictException, Injectable, Logger } from "@nestjs/common";
+import { context, propagation } from "@opentelemetry/api";
 import Stripe from "stripe";
 import {
   ORDER_STATUSES,
@@ -94,7 +95,9 @@ export class OrdersService {
    *    and release the Redis unit — the existing order wins.
    * 4. Publish in_progress so the buyer sees "Processing…" via Socket.IO immediately.
    * 5. Return clientSecret — the browser calls stripe.confirmCardPayment() which
-   *    handles 3DS if required. No BullMQ job yet; the webhook enqueues it.
+   *    handles 3DS if required. No BullMQ job yet; the webhook enqueues it. The PI's
+   *    metadata.traceparent carries this request's trace through to that later,
+   *    otherwise-unrelated webhook request (see stripe-webhook.service.ts).
    *
    * Concurrency (.claude/rules/concurrency.md):
    * - Redis DECR is the sold-out gate — atomic, one buyer per unit. (FR-8, FR-15)
@@ -112,6 +115,9 @@ export class OrdersService {
     const reserved = await this.stockService.reserveStock(dto.saleId, dto.quantity);
     if (!reserved) throw new ConflictException("sold out");
 
+    const traceCarrier: Record<string, string> = {};
+    propagation.inject(context.active(), traceCarrier);
+
     let pi: Stripe.PaymentIntent;
     try {
       pi = await this.stripe.paymentIntents.create({
@@ -120,6 +126,9 @@ export class OrdersService {
         payment_method: dto.paymentMethodId,
         payment_method_types: ["card"],
         capture_method: "manual",
+        ...(traceCarrier["traceparent"] && {
+          metadata: { traceparent: traceCarrier["traceparent"] },
+        }),
       });
     } catch (err) {
       await this.stockService.releaseStock(dto.saleId, dto.quantity);
