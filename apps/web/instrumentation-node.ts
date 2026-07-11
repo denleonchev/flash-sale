@@ -5,11 +5,28 @@ import { ConsoleSpanExporter } from "@opentelemetry/sdk-trace-base";
 export async function registerNode(): Promise<void> {
   const projectId = process.env["GCP_PROJECT_ID"];
 
+  // @vercel/otel does not inject traceparent into every outgoing fetch by default
+  // (avoids leaking trace context to third parties like Stripe/Auth0/Groq) — api
+  // must be allow-listed explicitly, or its spans start a disconnected trace.
+  const instrumentationConfig = {
+    fetch: {
+      propagateContextUrls: [process.env["API_INTERNAL_URL"] ?? "http://localhost:3001"],
+    },
+  };
+
   if (projectId) {
     const { TraceExporter } = await import("@google-cloud/opentelemetry-cloud-trace-exporter");
-    registerOTel({ serviceName: "web", traceExporter: new TraceExporter({ projectId }) });
+    registerOTel({
+      serviceName: "web",
+      traceExporter: new TraceExporter({ projectId }),
+      instrumentationConfig,
+    });
   } else {
-    registerOTel({ serviceName: "web", traceExporter: new ConsoleSpanExporter() });
+    registerOTel({
+      serviceName: "web",
+      traceExporter: new ConsoleSpanExporter(),
+      instrumentationConfig,
+    });
   }
 
   const { logger } = await import("./lib/logger/logger.server");
