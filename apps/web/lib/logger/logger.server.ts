@@ -8,7 +8,7 @@ const projectId = process.env["GCP_PROJECT_ID"];
 const gcpLog = projectId ? new Logging({ projectId }).log("web") : undefined;
 
 const stream = new Writable({
-  write(chunk: Buffer, _encoding, callback) {
+  async write(chunk: Buffer, _encoding, callback) {
     const line = chunk.toString();
     process.stdout.write(line);
     if (gcpLog) {
@@ -16,9 +16,10 @@ const stream = new Writable({
         string,
         unknown
       > & { severity?: string };
-      gcpLog
+      const send = gcpLog
         .write(gcpLog.entry({ severity }, jsonPayload))
         .catch((err: unknown) => process.stderr.write(`gcp log write failed: ${String(err)}\n`));
+      if (["ERROR", "CRITICAL"].includes(severity)) await send;
     }
     callback();
   },
