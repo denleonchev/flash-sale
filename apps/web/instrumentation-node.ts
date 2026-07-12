@@ -39,4 +39,11 @@ export async function registerNode(): Promise<void> {
     const method = level === "log" ? "info" : level;
     console[level] = (...args: unknown[]) => logger[method](format(...args));
   }
+
+  process.on("uncaughtException", (err) => {
+    logger.fatal({ err }, "uncaughtException");
+  });
+  process.on("unhandledRejection", (reason) => {
+    logger.fatal({ err: reason }, "unhandledRejection");
+  });
 }
