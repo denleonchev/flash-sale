@@ -3,6 +3,7 @@ import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { Logger } from "nestjs-pino";
 import { AppModule } from "./app.module.js";
+import { getAppBaseUrl } from "./config/get-app-base-url.js";
 import { RedisIoAdapter } from "./realtime/redis-io.adapter.js";
 
 async function bootstrap(): Promise<void> {
@@ -11,8 +12,9 @@ async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, { rawBody: true, bufferLogs: true });
   app.useLogger(app.get(Logger));
   app.enableShutdownHooks();
-  // Browser may connect to the socket from the web origin; reflect it. (NFR-10)
-  app.enableCors({ origin: true });
+  // Only the web origin (APP_BASE_URL) may call the api from a browser — never reflect
+  // an arbitrary Origin header.
+  app.enableCors({ origin: getAppBaseUrl() });
   // NFR-9: never trust the client — validate every DTO and strip unknown fields.
   app.useGlobalPipes(
     new ValidationPipe({

@@ -18,10 +18,11 @@ import {
 } from "@flash-sale/shared";
 import { SalesService } from "../sales/sales.service.js";
 import { OrdersService } from "../orders/orders.service.js";
+import { getAppBaseUrl } from "../config/get-app-base-url.js";
 import { getBuyerId } from "./socket-ticket.js";
 
-/** `cors.origin: true` only matters in dev (no Caddy). (NFR-10) */
-@WebSocketGateway({ cors: { origin: true } })
+/** Same restriction as the HTTP CORS in main.ts — only the web origin may connect. */
+@WebSocketGateway({ cors: { origin: getAppBaseUrl() } })
 export class SaleGateway implements OnGatewayConnection {
   private readonly logger = new Logger(SaleGateway.name);
 
