@@ -1,9 +1,10 @@
 import { format } from "node:util";
 import { registerOTel } from "@vercel/otel";
-import { ConsoleSpanExporter } from "@opentelemetry/sdk-trace-base";
+import { ConsoleSpanExporter, NoopSpanProcessor } from "@opentelemetry/sdk-trace-base";
 
 export async function registerNode(): Promise<void> {
   const projectId = process.env["GCP_PROJECT_ID"];
+  const isTraceDebuggingEnabled = process.env["DEBUG_TRACES"] === "1";
 
   // @vercel/otel does not inject traceparent into every outgoing fetch by default
   // (avoids leaking trace context to third parties like Stripe/Auth0/Groq) — api
@@ -25,7 +26,9 @@ export async function registerNode(): Promise<void> {
   } else {
     registerOTel({
       serviceName: "web",
-      traceExporter: new ConsoleSpanExporter(),
+      ...(isTraceDebuggingEnabled
+        ? { traceExporter: new ConsoleSpanExporter() }
+        : { spanProcessors: [new NoopSpanProcessor()] }),
       autoDetectResources: false,
       instrumentationConfig,
     });
