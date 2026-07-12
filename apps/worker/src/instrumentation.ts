@@ -10,7 +10,7 @@ const projectId = process.env["GCP_PROJECT_ID"];
 const sdk = new NodeSDK({
   serviceName: "worker",
   traceExporter: projectId ? new TraceExporter({ projectId }) : new tracing.ConsoleSpanExporter(),
-  resourceDetectors: [gcpDetector],
+  resourceDetectors: projectId ? [gcpDetector] : [],
   instrumentations: [
     new HttpInstrumentation(),
     new IORedisInstrumentation(),

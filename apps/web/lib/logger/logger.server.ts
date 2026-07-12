@@ -7,6 +7,10 @@ import { createGcpLoggingPinoConfig } from "@google-cloud/pino-logging-gcp-confi
 const projectId = process.env["GCP_PROJECT_ID"];
 const gcpLog = projectId ? new Logging({ projectId }).log("web") : undefined;
 
+const gcpLoggingConfig = projectId
+  ? undefined
+  : { serviceContext: { service: "web" }, traceGoogleCloudProjectId: "" };
+
 const stream = new Writable({
   async write(chunk: Buffer, _encoding, callback) {
     const line = chunk.toString();
@@ -25,4 +29,4 @@ const stream = new Writable({
   },
 });
 
-export const logger = pino(createGcpLoggingPinoConfig(), stream);
+export const logger = pino(createGcpLoggingPinoConfig(gcpLoggingConfig), stream);

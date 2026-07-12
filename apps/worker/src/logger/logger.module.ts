@@ -7,6 +7,10 @@ import { Logging } from "@google-cloud/logging";
 const projectId = process.env["GCP_PROJECT_ID"];
 const gcpLog = projectId ? new Logging({ projectId }).log("worker") : undefined;
 
+const gcpLoggingConfig = projectId
+  ? undefined
+  : { serviceContext: { service: "worker" }, traceGoogleCloudProjectId: "" };
+
 const stream = new Writable({
   async write(chunk: Buffer, _encoding, callback) {
     const line = chunk.toString();
@@ -28,7 +32,7 @@ const stream = new Writable({
 @Module({
   imports: [
     LoggerModule.forRoot({
-      pinoHttp: [createGcpLoggingPinoConfig(), stream],
+      pinoHttp: [createGcpLoggingPinoConfig(gcpLoggingConfig), stream],
     }),
   ],
 })

@@ -19,12 +19,14 @@ export async function registerNode(): Promise<void> {
     registerOTel({
       serviceName: "web",
       traceExporter: new TraceExporter({ projectId }),
+      autoDetectResources: true,
       instrumentationConfig,
     });
   } else {
     registerOTel({
       serviceName: "web",
       traceExporter: new ConsoleSpanExporter(),
+      autoDetectResources: false,
       instrumentationConfig,
     });
   }

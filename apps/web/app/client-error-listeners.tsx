@@ -3,9 +3,6 @@
 import { useEffect } from "react";
 import { reportClientError } from "@/lib/report-client-error";
 
-// React error boundaries (error.tsx/global-error.tsx) only catch render errors.
-// Errors thrown from event handlers, timers, or socket callbacks bypass them
-// entirely and would otherwise vanish into the browser console unseen.
 export function ClientErrorListeners(): null {
   useEffect(() => {
     const onError = (event: ErrorEvent): void => {
