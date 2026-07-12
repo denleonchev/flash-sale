@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { SiteHeader } from "./site-header";
 import { RoleSwitcher } from "./role-switcher";
+import { ClientErrorListeners } from "./client-error-listeners";
 import { getSession } from "@/lib/session";
 import "./globals.css";
 
@@ -23,6 +24,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <SiteHeader />
         <div className="w-full max-w-5xl mx-auto px-4 flex-1 flex flex-col">{children}</div>
         <RoleSwitcherWrapper />
+        <ClientErrorListeners />
       </body>
     </html>
   );

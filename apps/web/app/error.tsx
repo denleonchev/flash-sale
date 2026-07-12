@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { reportClientError } from "@/lib/report-client-error";
 
 export default function Error({
   error,
@@ -10,7 +11,13 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error(error);
+    reportClientError({
+      kind: "render-error",
+      message: error.message,
+      stack: error.stack,
+      digest: error.digest,
+      path: window.location.pathname,
+    });
   }, [error]);
 
   return (
