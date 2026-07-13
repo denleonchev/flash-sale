@@ -56,7 +56,7 @@ export function FraudFlagsTable({ flags }: { flags: FraudFlag[] }) {
                 {f.buyerName ?? f.buyerEmail ?? f.buyerId}
               </td>
               <td className="px-4 py-3 text-zinc-300">{f.saleTitle}</td>
-              <td className="px-4 py-3 text-zinc-400 max-w-xs truncate">{f.reason}</td>
+              <td className="px-4 py-3 text-zinc-400 max-w-xs">{f.reason}</td>
               <td className="px-4 py-3">
                 <span
                   className={`text-xs font-medium ${
