@@ -10,8 +10,21 @@ async function bootstrap(): Promise<void> {
   // rawBody: true is required for Stripe webhook signature verification. (FR-12)
   // bufferLogs: true holds bootstrap logs until app.useLogger attaches the pino logger below.
   const app = await NestFactory.create(AppModule, { rawBody: true, bufferLogs: true });
-  app.useLogger(app.get(Logger));
+  const logger = app.get(Logger);
+  app.useLogger(logger);
   app.enableShutdownHooks();
+
+  process.on("uncaughtException", (err) => {
+    logger.fatal(err, "uncaughtException");
+    setImmediate(() => process.exit(1));
+  });
+  process.on("unhandledRejection", (reason) => {
+    logger.fatal(
+      reason instanceof Error ? reason : new Error(String(reason)),
+      "unhandledRejection",
+    );
+    setImmediate(() => process.exit(1));
+  });
   // Only the web origin (APP_BASE_URL) may call the api from a browser — never reflect
   // an arbitrary Origin header.
   app.enableCors({ origin: getAppBaseUrl() });
@@ -31,4 +44,7 @@ async function bootstrap(): Promise<void> {
   await app.listen(port);
 }
 
-void bootstrap();
+bootstrap().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
