@@ -36,6 +36,7 @@ model Sale {
   createdAt   DateTime @default(now()) @map("created_at")
   // FR-26: set by the embed-sale worker job (S-6.2); null until first job completes.
   embedding   Unsupported("vector(384)")?
+  stockVersion Int     @default(0) @map("stock_version")
 
   orders     Order[]
   fraudFlags FraudFlag[]

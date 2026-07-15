@@ -19,6 +19,13 @@ export class SalesService {
     return toSale(sale, sale.stockTotal - sale._count.orders, new Date());
   }
 
+  /** Stock snapshot for the socket subscribe handshake — version pairs with SaleStockUpdatedPayload. */
+  async getStockSnapshot(id: string): Promise<{ remainingStock: number; version: number } | null> {
+    const sale = await this.repo.findById(id);
+    if (!sale) return null;
+    return { remainingStock: sale.stockTotal - sale._count.orders, version: sale.stockVersion };
+  }
+
   async createSale(dto: CreateSale): Promise<Sale> {
     const startsAt = new Date(dto.startsAt);
     const endsAt = new Date(dto.endsAt);

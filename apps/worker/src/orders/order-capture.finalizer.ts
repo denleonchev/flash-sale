@@ -48,7 +48,7 @@ export class CaptureOrderFinalizer {
   ) {}
 
   async finalizeCapture(job: CaptureOrderJobPayload): Promise<void> {
-    const { status, orderId, remainingStock, didTransition } =
+    const { status, orderId, remainingStock, version, didTransition } =
       await this.ordersRepo.decideCaptureOrCancel(job.orderId, job.saleId);
 
     if (didTransition) {
@@ -64,7 +64,7 @@ export class CaptureOrderFinalizer {
 
     void this.fraudProducer.enqueue({ orderId, buyerId: job.buyerId, saleId: job.saleId });
 
-    await this.stockPublisher.publishStock({ saleId: job.saleId, remainingStock });
+    await this.stockPublisher.publishStock({ saleId: job.saleId, remainingStock, version });
 
     await this.orderResultPublisher.publishOrderResult({
       buyerId: job.buyerId,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { SOCKET_EVENTS } from "@flash-sale/shared";
 import { getSocket } from "@/lib/socket";
 import { SaleStockUpdatedSchema } from "@/lib/schemas/sale-stock-updated.schema";
@@ -12,17 +12,22 @@ import { SaleStockUpdatedSchema } from "@/lib/schemas/sale-stock-updated.schema"
  */
 export function useSaleStock(saleId: string, initialStock: number): number {
   const [stock, setStock] = useState(initialStock);
+  const lastVersion = useRef<number | null>(null);
 
   useEffect(() => {
     const socket = getSocket();
 
-    const subscribeToSaleStock = () => socket.emit(SOCKET_EVENTS.SALE_STOCK_SUBSCRIBE, { saleId });
+    const subscribeToSaleStock = () => {
+      lastVersion.current = null;
+      socket.emit(SOCKET_EVENTS.SALE_STOCK_SUBSCRIBE, { saleId });
+    };
 
     const onSaleStockUpdated = (raw: unknown) => {
       const parsed = SaleStockUpdatedSchema.safeParse(raw);
-      if (parsed.success && parsed.data.saleId === saleId) {
-        setStock(parsed.data.remainingStock);
-      }
+      if (!parsed.success || parsed.data.saleId !== saleId) return;
+      if (lastVersion.current !== null && parsed.data.version < lastVersion.current) return;
+      lastVersion.current = parsed.data.version;
+      setStock(parsed.data.remainingStock);
     };
 
     socket.on("connect", subscribeToSaleStock);

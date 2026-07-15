@@ -10,4 +10,5 @@ import { z } from "zod";
 export const SaleStockUpdatedSchema = z.object({
   saleId: z.string(),
   remainingStock: z.number().int().nonnegative(),
+  version: z.number().int().nonnegative(),
 }) satisfies z.ZodType<SaleStockUpdatedPayload>;

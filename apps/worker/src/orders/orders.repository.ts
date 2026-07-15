@@ -6,6 +6,7 @@ export interface CaptureGuardedResult {
   readonly orderId: string;
   readonly status: OrderStatus;
   readonly remainingStock: number;
+  readonly version: number;
   /** true when this call made the transition (not a retry). Used to gate Redis release. */
   readonly didTransition: boolean;
 }
@@ -27,10 +28,10 @@ export class OrdersRepository {
    */
   async decideCaptureOrCancel(orderId: string, saleId: string): Promise<CaptureGuardedResult> {
     return this.prisma.db.$transaction(async (tx) => {
-      const rows = await tx.$queryRaw<{ stock_total: number }[]>`
-        SELECT stock_total FROM sales WHERE id = ${saleId} FOR UPDATE`;
+      const rows = await tx.$queryRaw<{ stock_total: number; stock_version: number }[]>`
+        SELECT stock_total, stock_version FROM sales WHERE id = ${saleId} FOR UPDATE`;
       if (rows.length === 0) throw new Error(`sale ${saleId} missing during capture`);
-      const stockTotal = rows[0]!.stock_total;
+      const { stock_total: stockTotal, stock_version: currentVersion } = rows[0]!;
 
       const confirmedCount = await tx.order.count({
         where: { saleId, status: OrderStatus.confirmed },
@@ -43,6 +44,15 @@ export class OrdersRepository {
         where: { id: orderId, status: OrderStatus.in_progress },
         data: { status: targetStatus },
       });
+      const didTransition = count > 0;
+
+      let version = currentVersion;
+      if (didTransition) {
+        const bumped = await tx.$queryRaw<{ stock_version: number }[]>`
+          UPDATE sales SET stock_version = stock_version + 1
+          WHERE id = ${saleId} RETURNING stock_version`;
+        version = bumped[0]!.stock_version;
+      }
 
       const remainingStock =
         targetStatus === OrderStatus.confirmed ? Math.max(0, stockTotal - confirmedCount - 1) : 0;
@@ -51,7 +61,8 @@ export class OrdersRepository {
         orderId,
         status: targetStatus,
         remainingStock,
-        didTransition: count > 0,
+        version,
+        didTransition,
       };
     });
   }

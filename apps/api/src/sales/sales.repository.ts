@@ -12,6 +12,7 @@ interface RawSaleRow {
   title: string;
   description: string | null;
   stock_total: number;
+  stock_version: number;
   price_cents: number;
   starts_at: Date;
   ends_at: Date;
@@ -64,9 +65,9 @@ export class SalesRepository {
     // Subquery computes distance once so the vector literal is parameterised a single time.
     // Threshold 0.6 ≈ cosine similarity > 0.4 — filters genuinely unrelated sales. (FR-26)
     const rows = await this.prisma.db.$queryRaw<RawSaleRow[]>`
-      SELECT id, title, description, stock_total, price_cents, starts_at, ends_at, created_at, confirmed_count
+      SELECT id, title, description, stock_total, stock_version, price_cents, starts_at, ends_at, created_at, confirmed_count
       FROM (
-        SELECT s.id, s.title, s.description, s.stock_total, s.price_cents, s.starts_at, s.ends_at, s.created_at,
+        SELECT s.id, s.title, s.description, s.stock_total, s.stock_version, s.price_cents, s.starts_at, s.ends_at, s.created_at,
                (COUNT(o.id) FILTER (WHERE o.status = 'confirmed'))::int AS confirmed_count,
                s.embedding <=> ${vectorStr}::vector AS distance
         FROM sales s
@@ -83,6 +84,7 @@ export class SalesRepository {
       title: r.title,
       description: r.description,
       stockTotal: r.stock_total,
+      stockVersion: r.stock_version,
       priceCents: r.price_cents,
       startsAt: r.starts_at,
       endsAt: r.ends_at,

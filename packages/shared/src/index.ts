@@ -54,6 +54,7 @@ export const REDIS_CHANNELS = {
 export interface SaleStockUpdatedPayload {
   saleId: string;
   remainingStock: number;
+  version: number;
 }
 
 export interface CaptureOrderJobPayload {

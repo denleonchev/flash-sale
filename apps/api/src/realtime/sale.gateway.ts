@@ -69,11 +69,12 @@ export class SaleGateway implements OnGatewayConnection {
     await socket.join(room);
     this.logger.log(`socket ${socket.id} joined ${room}`);
 
-    const sale = await this.salesService.getSaleById(data.saleId);
-    if (sale) {
+    const snapshot = await this.salesService.getStockSnapshot(data.saleId);
+    if (snapshot) {
       socket.emit(SOCKET_EVENTS.SALE_STOCK_UPDATED, {
-        saleId: sale.id,
-        remainingStock: sale.remainingStock,
+        saleId: data.saleId,
+        remainingStock: snapshot.remainingStock,
+        version: snapshot.version,
       } satisfies SaleStockUpdatedPayload);
     }
 
