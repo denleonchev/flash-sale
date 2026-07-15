@@ -20,12 +20,14 @@
 
 services:
   caddy:
-    image: caddy:2-alpine
+    image: ghcr.io/denleonchev/flash-sale-caddy:latest
     ports:
       - "80:80"
       - "443:443"
     environment:
       DOMAIN: ${DOMAIN}
+      RATE_LIMIT_EVENTS: ${RATE_LIMIT_EVENTS:-100}
+      RATE_LIMIT_WINDOW: ${RATE_LIMIT_WINDOW:-1m}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data      # persists certs across restarts

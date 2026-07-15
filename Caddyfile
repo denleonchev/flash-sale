@@ -1,7 +1,26 @@
+# caddy-ratelimit isn't in Caddy's built-in directive order — must be spliced in
+# explicitly (see apps/caddy/Dockerfile for the custom build that provides it).
+{
+	order rate_limit before basicauth
+}
+
 {$DOMAIN} {
 	log {
 		output stdout
 		format json
+	}
+
+	# General flood/abuse protection, per client IP, across the whole site.
+	# Caddy sees the real client IP directly here — no X-Forwarded-For trust
+	# needed. Budget comes from env (RATE_LIMIT_EVENTS/RATE_LIMIT_WINDOW) so it
+	# can be retuned against real traffic with a container restart, not a
+	# rebuild+deploy.
+	rate_limit {
+		zone dynamic {
+			key {remote_host}
+			events {$RATE_LIMIT_EVENTS:100}
+			window {$RATE_LIMIT_WINDOW:1m}
+		}
 	}
 
 	# WebSocket — Socket.IO upgrade handled automatically by Caddy.
@@ -9,7 +28,21 @@
 		reverse_proxy api:3001
 	}
 
-	# Webhooks — payment provider callbacks.
+	# Stripe webhook — payment callbacks. Stripe already signs the payload
+	# (verified in stripe-webhook.service.ts) — this is a cheap extra layer in
+	# front of that check. Scoped to Stripe's own controller path
+	# (@Controller("webhooks/stripe")) so it doesn't also gate some other
+	# provider's webhook that might land under /webhooks/* later. IP list:
+	# https://docs.stripe.com/ips (Stripe gives 7 days' notice of changes via
+	# the API announce mailing list — re-verify before assuming it's current).
+	handle /webhooks/stripe/* {
+		@not_stripe not remote_ip 3.18.12.63 3.130.192.231 13.235.14.237 13.235.122.149 18.211.135.69 35.154.171.200 52.15.183.38 54.88.130.119 54.88.130.237 54.187.174.169 54.187.205.235 54.187.216.72 35.157.207.129 3.69.109.8 3.120.168.93
+		respond @not_stripe 403
+		reverse_proxy api:3001
+	}
+
+	# Any other webhook provider — no IP allowlist here; each provider's
+	# controller validates its own request signature instead.
 	handle /webhooks/* {
 		reverse_proxy api:3001
 	}
