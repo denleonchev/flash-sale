@@ -1,0 +1,10 @@
+name: Stripe concurrency check (scheduled)
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Monday 06:00 UTC
+  workflow_dispatch:
+
+jobs:
+  concurrency-check:
+    uses: ./.github/workflows/concurrency-check.yml
+    secrets: inherit

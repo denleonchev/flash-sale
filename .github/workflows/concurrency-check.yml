@@ -1,0 +1,121 @@
+name: Stripe concurrency check
+on:
+  workflow_call:
+    inputs:
+      stock:
+        type: string
+        required: false
+      buyers:
+        type: string
+        required: false
+  workflow_dispatch:
+    inputs:
+      stock:
+        type: string
+        required: false
+        description: "Override CONCURRENCY_STOCK (e.g. to deliberately trip the failure path)"
+      buyers:
+        type: string
+        required: false
+        description: "Override CONCURRENCY_BUYERS"
+
+jobs:
+  concurrency-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: flash
+          POSTGRES_PASSWORD: flash
+          POSTGRES_DB: flash_sale
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U flash -d flash_sale"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      DATABASE_URL: postgresql://flash:flash@localhost:5432/flash_sale?schema=public
+      REDIS_URL: redis://localhost:6379
+      APP_BASE_URL: http://localhost:3000
+      API_PORT: "3001"
+      WORKER_PORT: "3002"
+      SOCKET_TICKET_SECRET: ci-placeholder-socket-ticket-secret
+      ADMIN_TICKET_SECRET: ci-placeholder-admin-ticket-secret
+      STRIPE_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
+      STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_TEST_WEBHOOK_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @flash-sale/db generate
+      - run: pnpm --filter @flash-sale/db migrate:deploy
+      - run: pnpm build
+
+      - name: Boot api + worker in background
+        run: |
+          pnpm --filter @flash-sale/api start > api.log 2>&1 &
+          echo $! > api.pid
+          pnpm --filter @flash-sale/worker start > worker.log 2>&1 &
+          echo $! > worker.pid
+
+      - name: Wait for api/worker readiness
+        run: |
+          for port in 3001 3002; do
+            for i in $(seq 1 30); do
+              if curl -sf "http://localhost:$port/health" > /dev/null; then
+                echo "port $port ready"
+                break
+              fi
+              if [ "$i" -eq 30 ]; then
+                echo "port $port not ready after 60s"
+                exit 1
+              fi
+              sleep 2
+            done
+          done
+
+      - name: Run Stripe concurrency harness
+        env:
+          STOCK_INPUT: ${{ inputs.stock }}
+          BUYERS_INPUT: ${{ inputs.buyers }}
+        run: |
+          # Guard against GH Actions interpolating an unset input as "" (not unset) —
+          # `?? "5"` in config.ts only falls back on null/undefined, not "", so an
+          # unconditional export would seed the sale with stockTotal: NaN.
+          if [ -n "$STOCK_INPUT" ]; then export CONCURRENCY_STOCK="$STOCK_INPUT"; fi
+          if [ -n "$BUYERS_INPUT" ]; then export CONCURRENCY_BUYERS="$BUYERS_INPUT"; fi
+          pnpm --filter @flash-sale/db test:integration:stripe-concurrency
+
+      - name: Upload api/worker logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: concurrency-check-logs
+          path: |
+            api.log
+            worker.log
+
+      - name: Stop api + worker
+        if: always()
+        run: |
+          [ -f api.pid ] && kill "$(cat api.pid)" 2>/dev/null || true
+          [ -f worker.pid ] && kill "$(cat worker.pid)" 2>/dev/null || true
