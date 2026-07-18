@@ -11,6 +11,23 @@ on:
         default: false
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://user:pass@localhost:5432/flash_sale
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @flash-sale/db generate
+      - run: pnpm lint
+      - run: pnpm build
+      - run: pnpm -r test
+
   changes:
     runs-on: ubuntu-latest
     outputs:
@@ -49,8 +66,8 @@ jobs:
               - 'infra/**'
 
   build-api:
-    needs: changes
-    if: needs.changes.outputs.api == 'true' || inputs.force == true
+    needs: [test, changes]
+    if: needs.test.result == 'success' && (needs.changes.outputs.api == 'true' || inputs.force == true)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -81,8 +98,8 @@ jobs:
   # gated by the production environment's required-reviewers rule — only the
   # deploy-prod job below is gated.
   build-web-stage:
-    needs: changes
-    if: needs.changes.outputs.web == 'true' || inputs.force == true
+    needs: [test, changes]
+    if: needs.test.result == 'success' && (needs.changes.outputs.web == 'true' || inputs.force == true)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -109,8 +126,8 @@ jobs:
           cache-to: type=gha,mode=max,scope=web-stage
 
   build-web-prod:
-    needs: changes
-    if: needs.changes.outputs.web == 'true' || inputs.force == true
+    needs: [test, changes]
+    if: needs.test.result == 'success' && (needs.changes.outputs.web == 'true' || inputs.force == true)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -137,8 +154,8 @@ jobs:
           cache-to: type=gha,mode=max,scope=web-prod
 
   build-worker:
-    needs: changes
-    if: needs.changes.outputs.worker == 'true' || inputs.force == true
+    needs: [test, changes]
+    if: needs.test.result == 'success' && (needs.changes.outputs.worker == 'true' || inputs.force == true)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -189,13 +206,15 @@ jobs:
           cache-to: type=gha,mode=max,scope=caddy
 
   deploy-stage:
-    needs: [build-api, build-web-stage, build-worker, build-caddy]
+    needs: [test, changes, build-api, build-web-stage, build-worker, build-caddy]
     # Run if at least one build succeeded; skip if all were skipped (no relevant changes).
     if: |
       always() && (
-        needs.build-api.result == 'success' ||
-        needs.build-web-stage.result == 'success' ||
-        needs.build-worker.result == 'success' ||
+        (needs.test.result == 'success' && (
+          needs.build-api.result == 'success' ||
+          needs.build-web-stage.result == 'success' ||
+          needs.build-worker.result == 'success'
+        )) ||
         needs.build-caddy.result == 'success' ||
         needs.changes.outputs.infra == 'true'
       )
