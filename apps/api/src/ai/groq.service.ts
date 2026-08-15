@@ -10,7 +10,7 @@ interface GroqResponse {
 }
 
 // GROQ_MODEL defaults to a fast, capable model; override per deployment (NFR-8).
-const DEFAULT_MODEL = "llama-3.3-70b-versatile";
+const DEFAULT_MODEL = "openai/gpt-oss-120b";
 
 @Injectable()
 export class GroqService {
