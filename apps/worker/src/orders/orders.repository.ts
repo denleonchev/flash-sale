@@ -46,6 +46,11 @@ export class OrdersRepository {
       });
       const didTransition = count > 0;
 
+      const status = didTransition
+        ? targetStatus
+        : (await tx.order.findUniqueOrThrow({ where: { id: orderId }, select: { status: true } }))
+            .status;
+
       let version = currentVersion;
       if (didTransition) {
         const bumped = await tx.$queryRaw<{ stock_version: number }[]>`
@@ -54,12 +59,13 @@ export class OrdersRepository {
         version = bumped[0]!.stock_version;
       }
 
-      const remainingStock =
-        targetStatus === OrderStatus.confirmed ? Math.max(0, stockTotal - confirmedCount - 1) : 0;
+      const confirmedAfter =
+        confirmedCount + (didTransition && targetStatus === OrderStatus.confirmed ? 1 : 0);
+      const remainingStock = Math.max(0, stockTotal - confirmedAfter);
 
       return {
         orderId,
-        status: targetStatus,
+        status,
         remainingStock,
         version,
         didTransition,
