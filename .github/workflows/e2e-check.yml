@@ -69,12 +69,16 @@ jobs:
       # graph (apps/web/CLAUDE.md), so it needs its own explicit build step.
       - run: pnpm --filter @flash-sale/web build
 
-      # Verify inputs against current stripe/stripe-cli-action docs if this step starts
-      # failing — the action's interface is outside this repo's control.
+      # Stripe ships no GitHub Action for the CLI — install the release binary. Release
+      # assets are versioned, so there is no "latest" URL to follow; bump by hand.
       - name: Install Stripe CLI
-        uses: stripe/stripe-cli-action@v1
-        with:
-          api_key: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
+        env:
+          STRIPE_CLI_VERSION: 1.50.11
+        run: |
+          mkdir -p "$RUNNER_TEMP/stripe-cli"
+          curl -fsSL "https://github.com/stripe/stripe-cli/releases/download/v${STRIPE_CLI_VERSION}/stripe_${STRIPE_CLI_VERSION}_linux_x86_64.tar.gz" \
+            | tar -xz -C "$RUNNER_TEMP/stripe-cli" stripe
+          echo "$RUNNER_TEMP/stripe-cli" >> "$GITHUB_PATH"
 
       - name: Start stripe listen (real Stripe → local webhook relay, no public port)
         run: |
