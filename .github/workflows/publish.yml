@@ -73,6 +73,11 @@ jobs:
               - 'apps/api/src/sales/**'
               - 'apps/api/src/realtime/**'
               - 'apps/api/src/stripe-webhook/**'
+              - 'apps/api/src/stock/**'
+              - 'apps/worker/src/orders/**'
+              - 'apps/worker/src/realtime/**'
+              - 'packages/shared/**'
+              - 'packages/db/prisma/schema.prisma'
             infra:
               - 'docker-compose.prod.yml'
               - 'Caddyfile'
