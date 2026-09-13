@@ -1,0 +1,11 @@
+# Same Auth0 tenant + management app credentials as ../terraform.tfvars
+# (auth0_domain/auth0_client_id/auth0_client_secret) — copy the real values here.
+#
+# Usage:
+#   cp terraform.tfvars.example terraform.tfvars
+#   terraform init
+#   terraform apply
+
+auth0_domain        = "your-tenant.us.auth0.com"
+auth0_client_id     = ""
+auth0_client_secret = ""

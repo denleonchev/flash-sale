@@ -1,0 +1,167 @@
+name: Buyer purchase flow e2e check
+on:
+  workflow_call: {}
+  workflow_dispatch: {}
+
+jobs:
+  e2e-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: flash
+          POSTGRES_PASSWORD: flash
+          POSTGRES_DB: flash_sale
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U flash -d flash_sale"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      DATABASE_URL: postgresql://flash:flash@localhost:5432/flash_sale?schema=public
+      REDIS_URL: redis://localhost:6379
+      APP_BASE_URL: http://localhost:3000
+      API_PORT: "3001"
+      WORKER_PORT: "3002"
+      WEB_PORT: "3000"
+      API_INTERNAL_URL: http://localhost:3001
+      NEXT_PUBLIC_SOCKET_URL: http://localhost:3001
+      SOCKET_TICKET_SECRET: ci-placeholder-socket-ticket-secret
+      ADMIN_TICKET_SECRET: ci-placeholder-admin-ticket-secret
+      STRIPE_SECRET_KEY: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY_E2E }}
+      AUTH0_DOMAIN: ${{ secrets.AUTH0_DOMAIN }}
+      AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
+      AUTH0_CLIENT_SECRET: ${{ secrets.AUTH0_CLIENT_SECRET }}
+      AUTH0_SECRET: ${{ secrets.AUTH0_SECRET }}
+      E2E_TEST_USER_EMAIL: ${{ secrets.E2E_TEST_USER_EMAIL }}
+      E2E_TEST_USER_PASSWORD: ${{ secrets.E2E_TEST_USER_PASSWORD }}
+      # NOT a secret: stripe listen (below) mints a fresh one-off webhook secret every
+      # run and this job exports it into STRIPE_WEBHOOK_SECRET via $GITHUB_ENV before
+      # api starts — unlike concurrency-check.yml, which self-signs with a fixed one.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @flash-sale/db generate
+      - run: pnpm --filter @flash-sale/db migrate:deploy
+      - run: pnpm build
+      # web bakes NEXT_PUBLIC_* at build time and isn't in the tsc -b project-references
+      # graph (apps/web/CLAUDE.md), so it needs its own explicit build step.
+      - run: pnpm --filter @flash-sale/web build
+
+      # Verify inputs against current stripe/stripe-cli-action docs if this step starts
+      # failing — the action's interface is outside this repo's control.
+      - name: Install Stripe CLI
+        uses: stripe/stripe-cli-action@v1
+        with:
+          api_key: ${{ secrets.STRIPE_TEST_SECRET_KEY }}
+
+      - name: Start stripe listen (real Stripe → local webhook relay, no public port)
+        run: |
+          stripe listen --forward-to http://localhost:3001/webhooks/stripe \
+            --api-key "$STRIPE_SECRET_KEY" > stripe-listen.log 2>&1 &
+          echo $! > stripe-listen.pid
+
+      - name: Wait for stripe listen and capture its one-off webhook secret
+        run: |
+          for i in $(seq 1 30); do
+            if grep -q "Ready! Your webhook signing secret is" stripe-listen.log 2>/dev/null; then
+              echo "stripe listen ready"
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "stripe listen did not become ready after 60s"
+              cat stripe-listen.log
+              exit 1
+            fi
+            sleep 2
+          done
+          secret=$(grep -oE 'whsec_[A-Za-z0-9]+' stripe-listen.log | head -n1)
+          if [ -z "$secret" ]; then
+            echo "could not parse webhook signing secret from stripe listen output"
+            cat stripe-listen.log
+            exit 1
+          fi
+          echo "STRIPE_WEBHOOK_SECRET=$secret" >> "$GITHUB_ENV"
+
+      - name: Boot api + worker + web in background
+        run: |
+          pnpm --filter @flash-sale/api start > api.log 2>&1 &
+          echo $! > api.pid
+          pnpm --filter @flash-sale/worker start > worker.log 2>&1 &
+          echo $! > worker.pid
+          pnpm --filter @flash-sale/web start > web.log 2>&1 &
+          echo $! > web.pid
+
+      - name: Wait for api/worker/web readiness
+        run: |
+          for port in 3001 3002; do
+            for i in $(seq 1 30); do
+              if curl -sf "http://localhost:$port/health" > /dev/null; then
+                echo "port $port ready"
+                break
+              fi
+              if [ "$i" -eq 30 ]; then
+                echo "port $port not ready after 60s"
+                exit 1
+              fi
+              sleep 2
+            done
+          done
+          for i in $(seq 1 30); do
+            if curl -sf "http://localhost:3000/" > /dev/null; then
+              echo "web (3000) ready"
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "web (3000) not ready after 60s"
+              exit 1
+            fi
+            sleep 2
+          done
+
+      - name: Install Playwright browsers
+        run: pnpm --filter @flash-sale/web exec playwright install --with-deps chromium
+
+      - name: Run buyer purchase flow e2e test
+        run: pnpm --filter @flash-sale/web test:e2e
+
+      - name: Upload Playwright report and service logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-check-logs
+          path: |
+            api.log
+            worker.log
+            web.log
+            stripe-listen.log
+            apps/web/playwright-report/
+
+      - name: Stop background processes
+        if: always()
+        run: |
+          [ -f api.pid ] && kill "$(cat api.pid)" 2>/dev/null || true
+          [ -f worker.pid ] && kill "$(cat worker.pid)" 2>/dev/null || true
+          [ -f web.pid ] && kill "$(cat web.pid)" 2>/dev/null || true
+          [ -f stripe-listen.pid ] && kill "$(cat stripe-listen.pid)" 2>/dev/null || true

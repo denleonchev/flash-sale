@@ -36,6 +36,7 @@ jobs:
       worker: ${{ steps.filter.outputs.worker }}
       caddy: ${{ steps.filter.outputs.caddy }}
       concurrency: ${{ steps.filter.outputs.concurrency }}
+      e2e: ${{ steps.filter.outputs.e2e }}
       infra: ${{ steps.filter.outputs.infra }}
     steps:
       - uses: actions/checkout@v4
@@ -66,6 +67,12 @@ jobs:
               - 'apps/worker/src/orders/**'
               - 'packages/db/prisma/schema.prisma'
               - 'packages/db/integration/stripe-concurrency/**'
+            e2e:
+              - 'apps/web/**'
+              - 'apps/api/src/orders/**'
+              - 'apps/api/src/sales/**'
+              - 'apps/api/src/realtime/**'
+              - 'apps/api/src/stripe-webhook/**'
             infra:
               - 'docker-compose.prod.yml'
               - 'Caddyfile'
@@ -220,8 +227,17 @@ jobs:
     uses: ./.github/workflows/concurrency-check.yml
     secrets: inherit
 
+  e2e-check:
+    needs: [test, changes]
+    if: needs.test.result == 'success' && (needs.changes.outputs.e2e == 'true' || inputs.force == true)
+    permissions:
+      contents: read
+    uses: ./.github/workflows/e2e-check.yml
+    secrets: inherit
+
   deploy-stage:
-    needs: [test, changes, build-api, build-web-stage, build-worker, build-caddy, concurrency-check]
+    needs:
+      [test, changes, build-api, build-web-stage, build-worker, build-caddy, concurrency-check, e2e-check]
     # Run if at least one build succeeded; skip if all were skipped (no relevant changes).
     if: |
       always() && (
@@ -234,7 +250,9 @@ jobs:
         needs.changes.outputs.infra == 'true'
       ) &&
       needs.concurrency-check.result != 'failure' &&
-      needs.concurrency-check.result != 'cancelled'
+      needs.concurrency-check.result != 'cancelled' &&
+      needs.e2e-check.result != 'failure' &&
+      needs.e2e-check.result != 'cancelled'
     permissions:
       contents: read
       id-token: write

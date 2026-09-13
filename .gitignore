@@ -14,6 +14,11 @@ dist/
 .next/
 next-env.d.ts
 
+# Playwright
+apps/web/e2e/.auth/
+apps/web/playwright-report/
+apps/web/test-results/
+
 # Prisma generated client
 packages/db/generated/
 
