@@ -49,9 +49,9 @@ jobs:
       AUTH0_SECRET: ${{ secrets.AUTH0_SECRET }}
       E2E_TEST_USER_EMAIL: ${{ secrets.E2E_TEST_USER_EMAIL }}
       E2E_TEST_USER_PASSWORD: ${{ secrets.E2E_TEST_USER_PASSWORD }}
-      # NOT a secret: stripe listen (below) mints a fresh one-off webhook secret every
-      # run and this job exports it into STRIPE_WEBHOOK_SECRET via $GITHUB_ENV before
-      # api starts — unlike concurrency-check.yml, which self-signs with a fixed one.
+      # STRIPE_WEBHOOK_SECRET is absent on purpose: stripe listen (below) reports the
+      # signing secret of its own session and this job exports it via $GITHUB_ENV before
+      # api starts — unlike concurrency-check.yml, which self-signs with a stored one.
     steps:
       - uses: actions/checkout@v4
 
@@ -86,27 +86,24 @@ jobs:
             --api-key "$STRIPE_SECRET_KEY" > stripe-listen.log 2>&1 &
           echo $! > stripe-listen.pid
 
-      - name: Wait for stripe listen and capture its one-off webhook secret
+      # Readiness is the secret itself, not the wording around it: the CLI prints its
+      # API version between "Ready!" and "Your webhook signing secret is".
+      - name: Wait for stripe listen and capture its webhook secret
         run: |
           for i in $(seq 1 30); do
-            if grep -q "Ready! Your webhook signing secret is" stripe-listen.log 2>/dev/null; then
+            secret=$(grep -oE 'whsec_[A-Za-z0-9]+' stripe-listen.log 2>/dev/null | head -n1)
+            if [ -n "$secret" ]; then
               echo "stripe listen ready"
-              break
+              echo "STRIPE_WEBHOOK_SECRET=$secret" >> "$GITHUB_ENV"
+              exit 0
             fi
             if [ "$i" -eq 30 ]; then
-              echo "stripe listen did not become ready after 60s"
+              echo "stripe listen did not report a webhook signing secret after 60s"
               cat stripe-listen.log
               exit 1
             fi
             sleep 2
           done
-          secret=$(grep -oE 'whsec_[A-Za-z0-9]+' stripe-listen.log | head -n1)
-          if [ -z "$secret" ]; then
-            echo "could not parse webhook signing secret from stripe listen output"
-            cat stripe-listen.log
-            exit 1
-          fi
-          echo "STRIPE_WEBHOOK_SECRET=$secret" >> "$GITHUB_ENV"
 
       - name: Boot api + worker + web in background
         run: |
