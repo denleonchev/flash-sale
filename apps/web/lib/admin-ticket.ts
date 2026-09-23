@@ -18,7 +18,7 @@ export function mintAdminTicket(): string {
 
 // @auth0/nextjs-auth0 v4 builds session.user from /userinfo which omits custom
 // namespace claims. They are only in the ID token — decode it directly.
-const ROLES_CLAIM = "https://flash-sale/roles" as const;
+export const ROLES_CLAIM = "https://flash-sale/roles" as const;
 
 type Session = { tokenSet?: { idToken?: string }; user: Record<string, unknown> };
 

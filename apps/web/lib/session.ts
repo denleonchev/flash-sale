@@ -1,10 +1,12 @@
 import { auth0 } from "@/lib/auth0";
 import { hasRole } from "@/lib/admin-ticket";
+import { isDemoSub } from "@/lib/demo-session";
 
 type Auth0Session = NonNullable<Awaited<ReturnType<typeof auth0.getSession>>>;
 
 export type AppSession = Auth0Session & {
   isAdmin: boolean;
+  isDemo: boolean;
   hasRole: (role: string) => boolean;
 };
 
@@ -14,6 +16,7 @@ export async function getSession(): Promise<AppSession | null> {
   return {
     ...session,
     isAdmin: hasRole(session, "admin"),
+    isDemo: isDemoSub(session.user.sub),
     hasRole: (role: string) => hasRole(session, role),
   };
 }

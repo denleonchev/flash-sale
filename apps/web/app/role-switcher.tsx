@@ -33,6 +33,12 @@ export function RoleSwitcher({ currentRole }: { currentRole: Role }) {
       return;
     }
 
+    const body = (await res.json().catch(() => ({}))) as { demo?: boolean };
+    if (body.demo) {
+      window.location.reload();
+      return;
+    }
+
     // prompt=login forces Auth0 to re-run post-login Actions so the new role
     // appears in the freshly issued ID token
     const returnTo = encodeURIComponent(window.location.pathname);

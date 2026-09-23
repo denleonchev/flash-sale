@@ -1,6 +1,10 @@
 import Link from "next/link";
+import { getSession } from "@/lib/session";
+import { DemoLoginButton } from "./demo-login-button";
 
-export default function HomePage() {
+export default async function HomePage() {
+  const session = await getSession();
+
   return (
     <main className="flex-1 flex flex-col items-center justify-center pb-10 text-center">
       <div className="max-w-md">
@@ -15,6 +19,15 @@ export default function HomePage() {
         >
           Browse sales
         </Link>
+        {!session && (
+          <div className="mt-8 pt-8 border-t border-zinc-800">
+            <DemoLoginButton />
+            <p className="mt-3 text-xs text-zinc-500">
+              No sign-up. Opens a ready-made buyer account so you can place an order — switch to
+              Moderator or Admin from the bar at the bottom.
+            </p>
+          </div>
+        )}
       </div>
     </main>
   );

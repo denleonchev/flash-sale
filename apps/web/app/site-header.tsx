@@ -49,7 +49,7 @@ export async function SiteHeader() {
         <span className="text-sm text-zinc-500">buyer</span>
       )}
       <a
-        href="/auth/logout"
+        href={session.isDemo ? "/api/demo/logout" : "/auth/logout"}
         className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors py-2 sm:py-0"
       >
         Sign out
