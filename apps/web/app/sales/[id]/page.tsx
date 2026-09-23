@@ -59,7 +59,13 @@ export default async function SalePage({ params }: { params: Promise<{ id: strin
             serverNow={sale.serverNow}
           />
           {isAdmin && (
-            <div className="mt-4 pt-4 border-t border-zinc-800">
+            <div className="mt-4 pt-4 border-t border-zinc-800 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-red-400">
+                  Admin action
+                </p>
+                <p className="text-xs text-zinc-500">Ends the sale for every buyer immediately.</p>
+              </div>
               <EndNowButton saleId={sale.id} />
             </div>
           )}

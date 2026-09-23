@@ -134,9 +134,15 @@ function StripeBuyForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">
-      <div className="flex gap-2">
-        <CopyCardButton label="Copy success card" number="4242424242424242" />
-        <CopyCardButton label="Copy fail card" number="4000000000000002" />
+      <div className="space-y-1.5">
+        <p className="text-xs text-zinc-500">
+          Stripe test mode — no real charge. Copy a test card, then use any future expiry and any
+          CVC.
+        </p>
+        <div className="flex gap-2">
+          <CopyCardButton label="Copy success card" number="4242424242424242" />
+          <CopyCardButton label="Copy declined card" number="4000000000000002" />
+        </div>
       </div>
       <div className="rounded-md border border-zinc-700 bg-zinc-800 px-3 py-3">
         <CardElement
