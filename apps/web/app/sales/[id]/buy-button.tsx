@@ -48,7 +48,7 @@ export function BuyButton({ saleId, signedIn, orderStatus }: Props) {
 
   if (stripePromise) {
     return (
-      <Elements stripe={stripePromise}>
+      <Elements stripe={stripePromise} options={{ locale: "en" }}>
         <StripeBuyForm saleId={saleId} orderStatus={orderStatus} />
       </Elements>
     );
