@@ -14,7 +14,7 @@ async function RoleSwitcherWrapper() {
   const session = await getSession();
   if (!session) return null;
   const currentRole = session.isAdmin ? "admin" : session.hasRole("moderator") ? "moderator" : "";
-  return <RoleSwitcher currentRole={currentRole as "" | "moderator" | "admin"} />;
+  return <RoleSwitcher currentRole={currentRole} />;
 }
 
 export default function RootLayout({ children }: { children: ReactNode }) {

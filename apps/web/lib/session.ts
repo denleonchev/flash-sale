@@ -1,6 +1,6 @@
 import { auth0 } from "@/lib/auth0";
 import { hasRole } from "@/lib/admin-ticket";
-import { isDemoSub } from "@/lib/demo-session";
+import { isDemoUser, readDemoRole } from "@/lib/demo-session";
 
 type Auth0Session = NonNullable<Awaited<ReturnType<typeof auth0.getSession>>>;
 
@@ -13,10 +13,15 @@ export type AppSession = Auth0Session & {
 export async function getSession(): Promise<AppSession | null> {
   const session = await auth0.getSession();
   if (!session) return null;
+
+  const isDemo = isDemoUser(session.user.sub);
+  const demoRole = isDemo ? await readDemoRole() : "";
+  const holdsRole = (role: string) => (isDemo ? demoRole === role : hasRole(session, role));
+
   return {
     ...session,
-    isAdmin: hasRole(session, "admin"),
-    isDemo: isDemoSub(session.user.sub),
-    hasRole: (role: string) => hasRole(session, role),
+    isAdmin: holdsRole("admin"),
+    isDemo,
+    hasRole: holdsRole,
   };
 }
