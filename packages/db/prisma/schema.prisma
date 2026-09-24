@@ -81,6 +81,9 @@ model Order {
   sale      Sale       @relation(fields: [saleId], references: [id])
   fraudFlag FraudFlag?
 
+  // The worker counts confirmed orders per sale under SELECT FOR UPDATE on every
+  // capture job — that read is what a higher worker concurrency would hit first.
+  @@index([saleId, status])
   @@map("orders")
 }
 
@@ -95,8 +98,8 @@ enum FraudFlagStatus {
   reviewed
 }
 
-/// FR-27: результат fraud screening. embedding — вектор текстового паттерна,
-/// используется как база прецедентов для RAG в следующих проверках.
+/// FR-27: fraud screening result. `embedding` is the vector of the behaviour pattern —
+/// it serves as the case base the RAG lookup searches on later screenings.
 model FraudFlag {
   id        String    @id @default(uuid())
   orderId   String    @unique @map("order_id")
