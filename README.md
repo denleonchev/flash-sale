@@ -2,7 +2,7 @@
 
 Flash sales: limited stock, many buyers at once. The system must confirm exactly K orders out of N concurrent requests — no overselling, no duplicates.
 
-**Live demo:** https://flash.bonadev.xyz
+**Live demo:** https://flash.bonadev.xyz — "Try demo account" opens a ready-made buyer, no sign-up. Switch to Moderator or Admin from the bar at the bottom to see fraud flags and create a sale.
 
 Two browser windows, two different buyers, same sale. One buys — `remaining` drops in both windows at the same instant, in real time:
 
@@ -31,9 +31,9 @@ redis.call('DECRBY', KEYS[1], tonumber(ARGV[1]))
 return 1
 ```
 
-**2. Queue with concurrency = 1** — reserved orders go into BullMQ. The worker processes them one at a time. No parallelism, no race.
+**2. Queue between the gate and the DB** — reserved orders go into BullMQ. Only winners get here: the Redis gate already turned everyone else away at "Buy", so the queue holds on the order of K jobs, not N. The worker currently runs them one at a time (`concurrency: 1`), which makes processing deterministic — but correctness does not depend on it. See [Ordering and fairness](#ordering-and-fairness).
 
-**3. Postgres transaction with SELECT FOR UPDATE** — the worker locks the sale row and counts confirmed orders before writing the final status. The DB cannot go below zero even if Redis and Postgres disagree.
+**3. Postgres transaction with SELECT FOR UPDATE** — the worker locks the sale row and counts confirmed orders before writing the final status. `SELECT FOR UPDATE` serialises concurrent capture jobs for the same sale — at any worker concurrency. The DB cannot go below zero even if Redis and Postgres disagree.
 
 ```typescript
 // worker/src/orders/orders.repository.ts
@@ -43,6 +43,20 @@ const targetStatus = confirmedCount < stockTotal ? "confirmed" : "sold_out";
 ```
 
 The API does write an `in_progress` order row and call Stripe on "Buy" — but the contention-prone step, deciding confirmed vs sold_out under `SELECT FOR UPDATE`, happens later in the worker, after the Stripe webhook. The Redis gate is what makes the sold-out decision instant and keeps that contention off the request path.
+
+---
+
+## Ordering and fairness
+
+The capture job is not enqueued by the purchase request. It is enqueued by the Stripe webhook, and between the Redis `DECRBY` and the queue sit `confirmCardPayment()` and, when the bank asks for it, a 3DS challenge.
+
+So FIFO in the queue is the order in which payments were confirmed, not the order in which people clicked. Clicks in a drop are milliseconds apart; the payment side spreads them over seconds.
+
+Which means `concurrency: 1` buys reproducibility of someone else's ordering, not fairness. Stated plainly: the fastest payment wins, not the fastest click. For a flash sale that is defensible — the payment is authorised, the funds are held, the buyer is real.
+
+The only place where click order still exists is the single-threaded Lua script. If fairness ever has to become a property of the system, the rank is taken there — an `INCR` next to the `DECRBY` — and the processing order stops meaning anything.
+
+Processing order only decides which of the extra orders becomes `sold_out` when Redis and Postgres disagree — a recovery path where any tie-break is equally arbitrary. It never affects the confirmed count.
 
 ---
 
@@ -64,13 +78,13 @@ Browser
                                  users)    pub/sub)
                                                          │
                                                     Worker (Nest.js)
-                                                    (processes orders,
+                                                    (capture jobs,
                                                      fraud screening,
                                                      embeddings)
 ```
 
 - **API** — takes purchase requests, runs Redis reservation, enqueues jobs, owns WebSocket connections
-- **Worker** — processes orders one at a time, runs Stripe capture, fraud screening
+- **Worker** — processes capture jobs, runs Stripe capture, fraud screening
 - **Web** — Next.js frontend, live stock via Socket.IO
 
 Postgres and Redis are external managed services (Supabase, Upstash), so the app services fit on a 1 GB VM.
@@ -109,7 +123,7 @@ After an order reaches `confirmed` or `sold_out` in the capture flow, a backgrou
 
 1. Collects buyer activity over the last 60 min
 2. Embeds the activity pattern locally (`all-MiniLM-L6-v2` via transformers.js)
-3. Finds similar past cases in Postgres via pgvector cosine similarity
+3. Finds similar past cases in Postgres via pgvector (L2 distance — embeddings are normalised, so L2 and cosine rank identically)
 4. Sends pattern + similar cases to Groq (LLaMA) for risk classification
 5. Medium / high risk → creates a `fraud_flag` for moderator review
 
@@ -133,6 +147,18 @@ confirmed + sold_out + failed == accepted
 
 ---
 
+## Known limits and scaling path
+
+`concurrency: 1` is global, not per sale: one busy drop delays the capture jobs of every other sale.
+
+`capturePI()` is a network call inside the job — it runs after the transaction commits, but still on the queue's critical path, so the ceiling is Stripe's latency rather than the database.
+
+Raising the concurrency runs first into the confirmed-count read under the row lock, which is why `orders(sale_id, status)` carries an index. After that, in order: the Supabase connection pool, Stripe's rate limits (BullMQ's `limiter` is the lever), and CPU contention with the local embedding jobs on a single e2-micro.
+
+Serialising per sale without giving up parallelism, if it is ever needed: `hash(saleId) % M` queues, each with `concurrency: 1`. The same guarantee per sale, M sales in flight, no BullMQ Pro licence.
+
+---
+
 ## Stack
 
 |               |                                                            |
@@ -145,6 +171,12 @@ confirmed + sold_out + failed == accepted
 | Payments      | Stripe (authorize/capture)                                 |
 | AI            | Groq (LLaMA), transformers.js                              |
 | Deploy        | GCP e2-micro, Docker Compose, Caddy, GitHub Actions → GHCR |
+
+---
+
+## Migrations
+
+Prisma has no representation for pgvector's `hnsw` index type, so both vector indexes live in a hand-written migration and are invisible to Prisma's schema diff — `migrate dev` generates a `DROP INDEX` for them, and has already done so once. New schema migrations are therefore created with `--create-only` (`pnpm migrate:new`), that line is stripped, and they are applied with `migrate deploy`, which never diffs the schema and so cannot generate a drop of its own.
 
 ---
 
@@ -166,10 +198,13 @@ flash-sale/
 ## Why these choices
 
 **Redis + queue + Postgres instead of Postgres-only?**
-Postgres with `SELECT FOR UPDATE` is correct but puts all contention on the DB during the spike. Redis gives a fast atomic gate on the hot path. The queue removes parallelism during finalisation. Postgres is the durable last check. Postgres-only would be fine for small real load — this design is chosen to demonstrate the right architecture for the problem.
+Postgres with `SELECT FOR UPDATE` is correct but puts all contention on the DB during the spike. Redis gives a fast atomic gate on the hot path. The queue removes the Stripe round-trip from the request path. Postgres is the durable last check. Postgres-only would be fine for small real load — this design is chosen to demonstrate the right architecture for the problem.
 
 **VM instead of Cloud Run?**
 Open WebSockets keep Cloud Run instances billed and face request timeouts. A queue worker wants to run continuously. A small always-on VM fits better. At scale the answer flips: Cloud Run + Socket.IO Redis adapter.
 
 **BullMQ instead of RabbitMQ?**
 Redis is already there. BullMQ runs on top of it — retries, backoff, concurrency control, no extra infrastructure.
+
+**Why a queue at all, if Redis already decides?**
+Redis is the fast gate on the hot path. The queue takes the capture and the Stripe round-trip off the request path and adds retries with backoff. Postgres is the last durable check. What the queue does _not_ give is the ordering guarantee people intuitively expect from it — see [Ordering and fairness](#ordering-and-fairness).
