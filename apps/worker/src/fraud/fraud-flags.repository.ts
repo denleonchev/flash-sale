@@ -54,16 +54,16 @@ export class FraudFlagsRepository {
   }
 
   async findSimilarFlags(vector: number[], limit = 3): Promise<SimilarFlag[]> {
-    // vector elements are finite floats produced by the model — safe to interpolate.
     const vectorStr = `[${vector.join(",")}]`;
-    return this.prisma.db.$queryRawUnsafe<SimilarFlag[]>(
-      `SELECT pattern, risk, reason
-       FROM fraud_flags
-       WHERE embedding IS NOT NULL
-       ORDER BY embedding <-> '${vectorStr}'::vector
-       LIMIT $1`,
-      limit,
-    );
+    // Bare ORDER BY ... LIMIT over one table is the shape fraud_flags_embedding_hnsw can
+    // serve; <-> is L2, matching the index opclass.
+    return this.prisma.db.$queryRaw<SimilarFlag[]>`
+      SELECT pattern, risk, reason
+      FROM fraud_flags
+      WHERE embedding IS NOT NULL
+      ORDER BY embedding <-> ${vectorStr}::vector
+      LIMIT ${limit}
+    `;
   }
 
   async createFlag(data: CreateFlagData): Promise<void> {
