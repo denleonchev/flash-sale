@@ -62,22 +62,28 @@ export class SalesRepository {
     limit = 10,
   ): Promise<Array<Sale & { _count: { orders: number } }>> {
     const vectorStr = `[${vector.join(",")}]`;
-    // Subquery computes distance once so the vector literal is parameterised a single time.
-    // Threshold 0.6 ≈ cosine similarity > 0.4 — filters genuinely unrelated sales. (FR-26)
+    // `nearest` must stay a bare ORDER BY ... LIMIT over sales — that is the only shape
+    // the hnsw index (sales_embedding_hnsw) can serve. Joining orders or grouping inside
+    // it makes Postgres compute the distance for every row instead.
+    // Filtering by threshold after the LIMIT returns the same rows: distance is sorted,
+    // so anything cut by the threshold is further than everything the LIMIT kept.
     const rows = await this.prisma.db.$queryRaw<RawSaleRow[]>`
-      SELECT id, title, description, stock_total, stock_version, price_cents, starts_at, ends_at, created_at, confirmed_count
-      FROM (
-        SELECT s.id, s.title, s.description, s.stock_total, s.stock_version, s.price_cents, s.starts_at, s.ends_at, s.created_at,
-               (COUNT(o.id) FILTER (WHERE o.status = 'confirmed'))::int AS confirmed_count,
-               s.embedding <=> ${vectorStr}::vector AS distance
-        FROM sales s
-        LEFT JOIN orders o ON o.sale_id = s.id
-        WHERE s.embedding IS NOT NULL
-        GROUP BY s.id
-      ) ranked
-      WHERE distance < ${SEARCH_DISTANCE_THRESHOLD}
-      ORDER BY distance
-      LIMIT ${limit}
+      WITH nearest AS (
+        SELECT id, embedding <=> ${vectorStr}::vector AS distance
+        FROM sales
+        WHERE embedding IS NOT NULL
+        ORDER BY distance
+        LIMIT ${limit}
+      )
+      SELECT s.id, s.title, s.description, s.stock_total, s.stock_version, s.price_cents,
+             s.starts_at, s.ends_at, s.created_at,
+             (COUNT(o.id) FILTER (WHERE o.status = 'confirmed'))::int AS confirmed_count
+      FROM nearest n
+      JOIN sales s ON s.id = n.id
+      LEFT JOIN orders o ON o.sale_id = s.id
+      WHERE n.distance < ${SEARCH_DISTANCE_THRESHOLD}
+      GROUP BY s.id, n.distance
+      ORDER BY n.distance
     `;
     return rows.map((r) => ({
       id: r.id,

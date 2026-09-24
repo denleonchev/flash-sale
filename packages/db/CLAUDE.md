@@ -15,6 +15,12 @@ worker import `@flash-sale/db`. The data model's source of truth is
   The agent writes `schema.prisma` and commits migration files — never applies them.
 - Change the schema, then create a new migration (`prisma migrate dev --name x`).
   Never hand-edit an applied migration.
+- **Vector (hnsw) indexes are invisible to Prisma** — it has no such index type, so the
+  schema diff treats `sales_embedding_hnsw` / `fraud_flags_embedding_hnsw` as drift and
+  emits `DROP INDEX` for them. It has already deleted them twice. Create migrations with
+  `pnpm migrate:new` (`--create-only`), delete any generated `DropIndex ..._hnsw` line,
+  then apply. The opclass must match the query operator: `vector_cosine_ops` for `<=>`
+  (sales search, FR-26), `vector_l2_ops` for `<->` (fraud RAG, FR-27).
 - Sale state (upcoming/live/ended) is derived from time + stock — never stored (FR-2).
 - The generated client lives in `generated/` (git-ignored) and is rebuilt by
   `postinstall: prisma generate`. Do not commit it.

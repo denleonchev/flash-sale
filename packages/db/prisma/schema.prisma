@@ -35,6 +35,8 @@ model Sale {
   endsAt      DateTime @map("ends_at")
   createdAt   DateTime @default(now()) @map("created_at")
   // FR-26: set by the embed-sale worker job (S-6.2); null until first job completes.
+  // The hnsw index lives in a hand-written migration — Prisma has no index type for it,
+  // so `migrate dev` regenerates a DROP INDEX for it. Drop that line from the diff.
   embedding   Unsupported("vector(384)")?
   stockVersion Int     @default(0) @map("stock_version")
 
@@ -103,6 +105,7 @@ model FraudFlag {
   risk       RiskLevel
   reason     String
   pattern    String
+  // Same as sales.embedding: the hnsw index is migration-only and survives no regeneration.
   embedding  Unsupported("vector(384)")?
   status     FraudFlagStatus @default(open)
   createdAt  DateTime        @default(now()) @map("created_at")
