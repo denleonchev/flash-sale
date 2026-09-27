@@ -1,0 +1,37 @@
+{
+  "name": "@flash-sale/telemetry",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b"
+  },
+  "dependencies": {
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/instrumentation-http": "^0.220.0",
+    "@opentelemetry/instrumentation-ioredis": "^0.68.0",
+    "@opentelemetry/instrumentation-nestjs-core": "^0.66.0",
+    "@opentelemetry/sdk-node": "^0.220.0",
+    "@opentelemetry/sdk-trace-base": "^2.9.0",
+    "pino": "^10.3.1"
+  },
+  "peerDependencies": {
+    "@flash-sale/telemetry-gcp": "workspace:*"
+  },
+  "peerDependenciesMeta": {
+    "@flash-sale/telemetry-gcp": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.3"
+  }
+}

@@ -7,6 +7,8 @@ WORKDIR /repo
 FROM base AS build
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json tsconfig.base.json ./
 COPY packages/shared/package.json packages/shared/
+COPY packages/telemetry/package.json packages/telemetry/
+COPY packages/telemetry-gcp/package.json packages/telemetry-gcp/
 # Full db copy needed: postinstall runs `prisma generate && tsc` during pnpm install.
 COPY packages/db packages/db
 COPY apps/api/package.json apps/api/
@@ -18,6 +20,8 @@ ARG DATABASE_URL=postgresql://build:build@localhost:5432/build
 RUN pnpm install --frozen-lockfile --filter @flash-sale/worker...
 
 COPY packages/shared packages/shared
+COPY packages/telemetry packages/telemetry
+COPY packages/telemetry-gcp packages/telemetry-gcp
 COPY apps/worker apps/worker
 RUN pnpm --filter @flash-sale/worker build
 # --ignore-scripts: prisma client is already generated above; skipping postinstall

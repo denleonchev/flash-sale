@@ -189,8 +189,10 @@ flash-sale/
 │   ├── worker/   order processing, fraud, embeddings
 │   └── web/      Next.js frontend
 └── packages/
-    ├── shared/   queue job types, socket events, enums (imported by api and worker)
-    └── db/       Prisma schema, migrations, integration tests
+    ├── shared/         queue job types, socket events, enums (imported by api and worker)
+    ├── telemetry/      tracing + log wiring, vendor-neutral
+    ├── telemetry-gcp/  the only package that imports a Google SDK
+    └── db/             Prisma schema, migrations, integration tests
 ```
 
 ---

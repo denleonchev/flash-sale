@@ -7,6 +7,8 @@ WORKDIR /repo
 FROM base AS build
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json tsconfig.base.json ./
 COPY packages/shared/package.json packages/shared/
+COPY packages/telemetry/package.json packages/telemetry/
+COPY packages/telemetry-gcp/package.json packages/telemetry-gcp/
 # Full db copy needed: postinstall runs `prisma generate && tsc` during pnpm install.
 COPY packages/db packages/db
 COPY apps/api/package.json apps/api/
@@ -19,7 +21,10 @@ RUN pnpm install --frozen-lockfile --filter @flash-sale/web...
 
 COPY packages/shared/src packages/shared/src
 COPY packages/shared/tsconfig.json packages/shared/
+COPY packages/telemetry packages/telemetry
+COPY packages/telemetry-gcp packages/telemetry-gcp
 RUN pnpm --filter @flash-sale/shared build
+RUN pnpm --filter @flash-sale/telemetry build
 
 COPY apps/web apps/web
 # NEXT_PUBLIC_* vars are inlined at build time — must be available here, not only at runtime.

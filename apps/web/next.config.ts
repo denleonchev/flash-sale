@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 const config: NextConfig = {
   output: "standalone",
   outputFileTracingRoot: fileURLToPath(new URL("../../", import.meta.url)),
-  transpilePackages: ["@flash-sale/shared"],
+  transpilePackages: ["@flash-sale/shared", "@flash-sale/telemetry"],
 };
 
 export default config;

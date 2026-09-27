@@ -1,11 +1,9 @@
 import { format } from "node:util";
 import { registerOTel } from "@vercel/otel";
-import { ConsoleSpanExporter, NoopSpanProcessor } from "@opentelemetry/sdk-trace-base";
+import { NoopSpanProcessor } from "@opentelemetry/sdk-trace-base";
+import { loadTraceExporter } from "@flash-sale/telemetry";
 
 export async function registerNode(): Promise<void> {
-  const projectId = process.env["GCP_PROJECT_ID"];
-  const isTraceDebuggingEnabled = process.env["DEBUG_TRACES"] === "1";
-
   // @vercel/otel does not inject traceparent into every outgoing fetch by default
   // (avoids leaking trace context to third parties like Stripe/Auth0/Groq) — api
   // must be allow-listed explicitly, or its spans start a disconnected trace.
@@ -15,24 +13,14 @@ export async function registerNode(): Promise<void> {
     },
   };
 
-  if (projectId) {
-    const { TraceExporter } = await import("@google-cloud/opentelemetry-cloud-trace-exporter");
-    registerOTel({
-      serviceName: "web",
-      traceExporter: new TraceExporter({ projectId }),
-      autoDetectResources: true,
-      instrumentationConfig,
-    });
-  } else {
-    registerOTel({
-      serviceName: "web",
-      ...(isTraceDebuggingEnabled
-        ? { traceExporter: new ConsoleSpanExporter() }
-        : { spanProcessors: [new NoopSpanProcessor()] }),
-      autoDetectResources: false,
-      instrumentationConfig,
-    });
-  }
+  const traceExporter = await loadTraceExporter();
+  registerOTel({
+    serviceName: "web",
+    ...(traceExporter
+      ? { traceExporter, autoDetectResources: true }
+      : { spanProcessors: [new NoopSpanProcessor()], autoDetectResources: false }),
+    instrumentationConfig,
+  });
 
   const { logger } = await import("./lib/logger/logger.server");
   for (const level of ["log", "info", "warn", "error", "debug"] as const) {
