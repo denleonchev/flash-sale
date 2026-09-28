@@ -252,7 +252,7 @@ the core flow works fully without them. (NFR-13)
 - A swap file on the VM is a safety margin against OOM during install/build.
 - **Two environments, two GCP projects**: `stage` and `prod`, each its own VM,
   external DB/Redis instance, and Auth0 clients — provisioned from the same
-  Terraform config (`infra/`) via separate workspaces/tfvars. CI/CD
+  Terraform config (`infra/gcp/`) via separate workspaces/tfvars. CI/CD
   (`.github/workflows/publish.yml`) builds each image once per commit and
   promotes the same tag to both: stage deploys automatically on push to
   `main`, prod deploys after manual approval on the `production` GitHub
