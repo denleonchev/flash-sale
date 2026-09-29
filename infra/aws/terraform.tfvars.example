@@ -1,0 +1,37 @@
+# Example tfvars for the AWS stack. Copy per environment and fill in real values —
+# never commit the real files (see .gitignore: *.tfvars, excluding this .example).
+#
+# Usage:
+#   cd infra/aws
+#   cp terraform.tfvars.example terraform.tfvars
+#   terraform init && terraform apply
+#
+#   Prod (new workspace):
+#     terraform workspace new prod
+#     cp terraform.tfvars.example terraform.prod.tfvars
+#     terraform apply -var-file=terraform.prod.tfvars
+#
+# Before the first apply, create the runtime .env parameter — its value must not pass
+# through Terraform state:
+#   aws secretsmanager put-secret-value --secret-id flash-sale-<env>-env \
+#     --secret-string file://.env.<env> --region us-east-1
+
+# ── Differs per environment ──────────────────────────────────────────────────
+environment = "stage"
+subdomain   = "stg.flash"          # prod: e.g. "flash" -> flash.bonadev.xyz
+
+# AWS has no equivalent of a GCP project: stage and prod live in one account and are
+# told apart by name and tags (flash-sale-<environment>). Hard isolation would mean a
+# second account under Organizations.
+
+# ── Shared ───────────────────────────────────────────────────────────────────
+region        = "us-east-1"   # same region as the Supabase project
+aws_profile   = "flash-sale"
+instance_type = "t3.small"    # amd64: the images in GHCR are single-arch
+
+root_domain = "bonadev.xyz"
+
+auth0_client_id     = ""
+
+cloudflare_api_token = ""
+cloudflare_zone_id   = ""
