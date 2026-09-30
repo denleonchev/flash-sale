@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { FraudFlag } from "@flash-sale/db/client";
-import type { FraudFlagStatus } from "@flash-sale/shared";
+import { FRAUD_FLAG_STATUSES, type FraudFlagStatus } from "@flash-sale/shared";
 import { PrismaService } from "../db/prisma.service.js";
 
 export type FraudFlagWithBuyer = FraudFlag & {
@@ -42,10 +42,10 @@ export class FraudFlagsRepository {
     return this.prisma.db.fraudFlag.findUnique({ where: { id } });
   }
 
-  async markReviewed(id: string): Promise<FraudFlagWithBuyer> {
+  async updateStatus(id: string, status: FraudFlagStatus): Promise<FraudFlagWithBuyer> {
     const flag = await this.prisma.db.fraudFlag.update({
       where: { id },
-      data: { status: "reviewed", reviewedAt: new Date() },
+      data: { status, reviewedAt: status === FRAUD_FLAG_STATUSES.OPEN ? null : new Date() },
     });
     return this.enrichWithBuyer(flag);
   }

@@ -137,7 +137,11 @@ export interface FraudScreeningJobPayload {
 export const RISK_LEVELS = { LOW: "low", MEDIUM: "medium", HIGH: "high" } as const;
 export type RiskLevel = (typeof RISK_LEVELS)[keyof typeof RISK_LEVELS];
 
-export const FRAUD_FLAG_STATUSES = { OPEN: "open", REVIEWED: "reviewed" } as const;
+export const FRAUD_FLAG_STATUSES = {
+  OPEN: "open",
+  CONFIRMED: "confirmed",
+  REJECTED: "rejected",
+} as const;
 export type FraudFlagStatus = (typeof FRAUD_FLAG_STATUSES)[keyof typeof FRAUD_FLAG_STATUSES];
 
 export interface FraudFlag {

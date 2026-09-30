@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { FRAUD_FLAG_STATUSES } from "@flash-sale/shared";
 import { getSession } from "@/lib/session";
 import { listFraudFlagsAction } from "./actions";
+import { FRAUD_FLAG_STATUS_LABELS } from "./status-labels";
 import { FraudFlagsTable } from "./fraud-flags-table";
 
 export default async function FraudFlagsPage({
@@ -22,12 +24,11 @@ export default async function FraudFlagsPage({
         <NavLink href="/admin/fraud-flags" active={!status}>
           All
         </NavLink>
-        <NavLink href="/admin/fraud-flags?status=open" active={status === "open"}>
-          Open
-        </NavLink>
-        <NavLink href="/admin/fraud-flags?status=reviewed" active={status === "reviewed"}>
-          Reviewed
-        </NavLink>
+        {Object.values(FRAUD_FLAG_STATUSES).map((s) => (
+          <NavLink key={s} href={`/admin/fraud-flags?status=${s}`} active={status === s}>
+            {FRAUD_FLAG_STATUS_LABELS[s]}
+          </NavLink>
+        ))}
       </nav>
       <FraudFlagsTable flags={flags} />
     </main>

@@ -1,7 +1,17 @@
-import { Controller, Get, Param, ParseUUIDPipe, Patch, Query, UseGuards } from "@nestjs/common";
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Query,
+  UseGuards,
+} from "@nestjs/common";
 import type { FraudFlag, FraudFlagStatus } from "@flash-sale/shared";
 import { AdminGuard } from "../admin/admin.guard.js";
 import { FraudFlagsService } from "./fraud-flags.service.js";
+import { UpdateFraudFlagStatusDto } from "./dto/update-fraud-flag-status.dto.js";
 
 @Controller("admin/fraud-flags")
 export class FraudFlagsController {
@@ -14,8 +24,11 @@ export class FraudFlagsController {
   }
 
   @UseGuards(AdminGuard)
-  @Patch(":id/review")
-  reviewFlag(@Param("id", ParseUUIDPipe) id: string): Promise<FraudFlag> {
-    return this.service.reviewFlag(id);
+  @Patch(":id/status")
+  setFlagStatus(
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: UpdateFraudFlagStatusDto,
+  ): Promise<FraudFlag> {
+    return this.service.setFlagStatus(id, dto.status);
   }
 }

@@ -29,10 +29,10 @@ export class FraudFlagsService {
     return flags.map(toDto);
   }
 
-  async reviewFlag(id: string): Promise<FraudFlag> {
+  async setFlagStatus(id: string, status: FraudFlagStatus): Promise<FraudFlag> {
     const existing = await this.repo.findById(id);
     if (!existing) throw new NotFoundException(`FraudFlag ${id} not found`);
-    const updated = await this.repo.markReviewed(id);
+    const updated = await this.repo.updateStatus(id, status);
     return toDto(updated);
   }
 }

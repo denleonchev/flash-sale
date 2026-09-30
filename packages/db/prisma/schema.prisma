@@ -95,7 +95,8 @@ enum RiskLevel {
 
 enum FraudFlagStatus {
   open
-  reviewed
+  confirmed
+  rejected
 }
 
 /// FR-27: fraud screening result. `embedding` is the vector of the behaviour pattern —
