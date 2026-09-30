@@ -27,6 +27,9 @@ interface CreateFlagData {
   embedding?: number[];
 }
 
+// Tune against real data once the base grows.
+const SIMILARITY_DISTANCE_THRESHOLD = 1.0;
+
 @Injectable()
 export class FraudFlagsRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -59,11 +62,15 @@ export class FraudFlagsRepository {
     // serve; <-> is L2, matching the index opclass.
     return this.prisma.db.$queryRaw<SimilarFlag[]>`
       SELECT pattern, risk, reason
-      FROM fraud_flags
-      WHERE embedding IS NOT NULL
-        AND status = ${FRAUD_FLAG_STATUSES.CONFIRMED}::"FraudFlagStatus"
-      ORDER BY embedding <-> ${vectorStr}::vector
-      LIMIT ${limit}
+      FROM (
+        SELECT pattern, risk, reason, embedding <-> ${vectorStr}::vector AS distance
+        FROM fraud_flags
+        WHERE embedding IS NOT NULL
+          AND status = ${FRAUD_FLAG_STATUSES.CONFIRMED}::"FraudFlagStatus"
+        ORDER BY distance
+        LIMIT ${limit}
+      ) ranked
+      WHERE distance < ${SIMILARITY_DISTANCE_THRESHOLD}
     `;
   }
 
