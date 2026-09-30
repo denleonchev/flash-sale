@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { RiskLevel } from "@flash-sale/shared";
+import { FRAUD_FLAG_STATUSES, RiskLevel } from "@flash-sale/shared";
 import { PrismaService } from "../db/prisma.service.js";
 
 interface BuyerActivity {
@@ -61,6 +61,7 @@ export class FraudFlagsRepository {
       SELECT pattern, risk, reason
       FROM fraud_flags
       WHERE embedding IS NOT NULL
+        AND status = ${FRAUD_FLAG_STATUSES.CONFIRMED}::"FraudFlagStatus"
       ORDER BY embedding <-> ${vectorStr}::vector
       LIMIT ${limit}
     `;

@@ -23,7 +23,7 @@ export class FraudScreeningService {
     const { risk, reason } = await this.classify(orderId, pattern, similar);
 
     this.logger.log(`fraud screen order ${orderId}: risk=${risk}`);
-    // FR-22: low risk is stored too — those rows are the RAG lookup's negative examples.
+    // FR-22: every verdict is stored; the RAG lookup reads only the confirmed ones.
     await this.repo.createFlag({
       orderId,
       buyerId,
@@ -64,7 +64,7 @@ export class FraudScreeningService {
     similar: Awaited<ReturnType<typeof this.repo.findSimilarFlags>>,
   ): Promise<{ risk: RiskLevel; reason: string }> {
     const historicalContext = similar.length
-      ? "\n\nSimilar cases from this platform's history:\n" +
+      ? "\n\nSimilar cases from this platform's history, confirmed by a moderator:\n" +
         similar
           .map((f, i) => `${i + 1}. pattern: ${f.pattern} | risk: ${f.risk} | reason: ${f.reason}`)
           .join("\n")
