@@ -45,6 +45,18 @@ variable "auth0_client_secret" {
   sensitive = true
 }
 
+variable "github_repository" {
+  type    = string
+  default = "denleonchev/flash-sale"
+}
+
+# Empty creates the account's OIDC provider; set it to an existing ARN when another
+# workspace in the same account already created one.
+variable "github_oidc_provider_arn" {
+  type    = string
+  default = ""
+}
+
 variable "cloudflare_api_token" {
   type      = string
   sensitive = true
