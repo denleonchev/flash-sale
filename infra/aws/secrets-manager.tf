@@ -3,11 +3,12 @@
 # actual payload is pushed directly via `aws secretsmanager put-secret-value`, bypassing
 # state entirely. Mirrors ../gcp/secret-manager.tf.
 #
-# Deleting a secret starts a recovery window (30 days by default), during which the name
-# stays taken — `terraform destroy` followed by a fresh apply fails on the name unless
-# the old one is purged with `--force-delete-without-recovery`.
+# recovery_window_in_days = 0 purges on destroy instead of holding the name for 30 days:
+# the payload is a local .env file, so there is nothing here to recover, and an
+# environment that gets destroyed and recreated must be able to reuse its own name.
 resource "aws_secretsmanager_secret" "vm_env" {
-  name = "${local.name}-env"
+  name                    = "${local.name}-env"
+  recovery_window_in_days = 0
 }
 
 resource "aws_iam_role_policy" "vm_env_accessor" {
