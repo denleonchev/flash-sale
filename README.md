@@ -125,7 +125,7 @@ After an order reaches `confirmed` or `sold_out` in the capture flow, a backgrou
 2. Embeds the activity pattern locally (`all-MiniLM-L6-v2` via transformers.js)
 3. Finds similar past cases in Postgres via pgvector (L2 distance — embeddings are normalised, so L2 and cosine rank identically)
 4. Sends pattern + similar cases to Groq (LLaMA) for risk classification
-5. Medium / high risk → creates a `fraud_flag` for moderator review
+5. Stores a `fraud_flag` with the verdict — every screening, not just the risky ones, so the case base in step 3 has negative examples too
 
 If Groq is rate-limited or the model is unavailable, the purchase flow is not affected.
 
