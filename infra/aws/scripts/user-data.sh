@@ -6,6 +6,19 @@ if ! id -u deployer >/dev/null 2>&1; then
   useradd -m -s /bin/bash deployer
 fi
 
+# 1 GiB of RAM leaves little headroom once the worker loads the embedding model, and an
+# OOM kill there takes the whole container down. Swap turns that into slowness instead.
+# swappiness stays low so it is only touched under real pressure.
+if [ ! -f /swapfile ]; then
+  fallocate -l 2G /swapfile
+  chmod 600 /swapfile
+  mkswap /swapfile
+  swapon /swapfile
+  echo "/swapfile none swap sw 0 0" >> /etc/fstab
+  sysctl -w vm.swappiness=10
+  echo "vm.swappiness=10" > /etc/sysctl.d/99-swappiness.conf
+fi
+
 # Debian AMIs ship without the SSM agent, and no SSH port is open — without this the
 # instance is unreachable, including for CI deploys.
 ARCH=$(dpkg --print-architecture)
