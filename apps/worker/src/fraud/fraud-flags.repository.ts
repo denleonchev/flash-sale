@@ -2,7 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { FRAUD_FLAG_STATUSES, RiskLevel } from "@flash-sale/shared";
 import { PrismaService } from "../db/prisma.service.js";
 
-interface BuyerActivity {
+export interface BuyerActivity {
   attempts: number;
   confirmed: number;
   sold_out: number;
@@ -11,7 +11,7 @@ interface BuyerActivity {
   account_age_hours: number;
 }
 
-interface SimilarFlag {
+export interface SimilarFlag {
   pattern: string;
   risk: RiskLevel;
   reason: string;

@@ -1,9 +1,20 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { RISK_LEVELS, type FraudScreeningJobPayload, type RiskLevel } from "@flash-sale/shared";
-import { FraudFlagsRepository } from "./fraud-flags.repository.js";
+import {
+  FraudFlagsRepository,
+  type BuyerActivity,
+  type SimilarFlag,
+} from "./fraud-flags.repository.js";
 import { GroqService } from "../ai/groq.service.js";
 import { EmbeddingService } from "../embeds/embedding.service.js";
 import { FRAUD_SYSTEM_PROMPT, FRAUD_FEW_SHOT_EXAMPLES } from "./fraud-screening.prompts.js";
+
+export interface FraudAssessment {
+  risk: RiskLevel;
+  reason: string;
+  pattern: string;
+  vector: number[] | undefined;
+}
 
 @Injectable()
 export class FraudScreeningService {
@@ -18,9 +29,7 @@ export class FraudScreeningService {
   async screen(payload: FraudScreeningJobPayload): Promise<void> {
     const { orderId, buyerId, saleId } = payload;
     const activity = await this.repo.getBuyerActivity(buyerId, 60);
-    const pattern = this.buildPattern(activity);
-    const { vector, similar } = await this.fetchSimilar(pattern);
-    const { risk, reason } = await this.classify(pattern, similar);
+    const { risk, reason, pattern, vector } = await this.assess(activity);
 
     this.logger.log(`fraud screen order ${orderId}: risk=${risk}`);
     // FR-22: every verdict is stored; the RAG lookup reads only the confirmed ones.
@@ -36,7 +45,14 @@ export class FraudScreeningService {
     this.logger.log(`fraud flag created for order ${orderId} risk=${risk}`);
   }
 
-  private buildPattern(activity: Awaited<ReturnType<typeof this.repo.getBuyerActivity>>): string {
+  async assess(activity: BuyerActivity): Promise<FraudAssessment> {
+    const pattern = this.buildPattern(activity);
+    const { vector, similar } = await this.fetchSimilar(pattern);
+    const { risk, reason } = await this.classify(pattern, similar);
+    return { risk, reason, pattern, vector };
+  }
+
+  private buildPattern(activity: BuyerActivity): string {
     return [
       `attempts: ${activity.attempts}`,
       `confirmed: ${activity.confirmed}`,
@@ -60,7 +76,7 @@ export class FraudScreeningService {
 
   private async classify(
     pattern: string,
-    similar: Awaited<ReturnType<typeof this.repo.findSimilarFlags>>,
+    similar: SimilarFlag[],
   ): Promise<{ risk: RiskLevel; reason: string }> {
     const historicalContext = similar.length
       ? "\n\nSimilar cases from this platform's history, confirmed by a moderator:\n" +
