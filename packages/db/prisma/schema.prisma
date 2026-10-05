@@ -118,5 +118,23 @@ model FraudFlag {
   order Order @relation(fields: [orderId], references: [id])
   sale  Sale  @relation(fields: [saleId], references: [id])
 
+  citations FraudFlagCitation[] @relation("citing")
+  citedBy   FraudFlagCitation[] @relation("cited")
+
   @@map("fraud_flags")
+}
+
+model FraudFlagCitation {
+  flagId      String @map("flag_id")
+  position    Int
+  citedFlagId String @map("cited_flag_id")
+  distance    Float
+
+  flag      FraudFlag @relation("citing", fields: [flagId], references: [id], onDelete: Cascade)
+  citedFlag FraudFlag @relation("cited", fields: [citedFlagId], references: [id], onDelete: Cascade)
+
+  @@id([flagId, position])
+  // Reverse lookup: which verdicts were built on this precedent.
+  @@index([citedFlagId])
+  @@map("fraud_flag_citations")
 }

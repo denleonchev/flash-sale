@@ -193,8 +193,12 @@ purposes: fraud screening (order signal embeddings) and semantic search
   `acknowledged_at` is set when the buyer confirms receipt of the result; subsequent
   reconnect snapshots are suppressed once it is set. (FR-14, FR-19)
 - **fraud_flags** _(Ext)_ — `id`, `order_id`, `buyer_id`, `sale_id`, `risk`,
-  `reason`, `pattern`, `embedding vector`, `status` (open | reviewed),
+  `reason`, `pattern`, `embedding vector`, `status` (open | confirmed | rejected),
   `created_at`, `reviewed_at`. (FR-22)
+- **fraud_flag_citations** _(Ext)_ — `flag_id`, `position`, `cited_flag_id`,
+  `distance`. The confirmed flags that were put into the prompt when `flag_id` was
+  screened, in prompt order, with their vector distance at that moment. Lets a
+  moderator see the evidence behind a verdict. Primary key (`flag_id`, `position`).
 
 Authoritative stock lives in Postgres (`stock_total` minus confirmed orders). The
 Redis counter is a fast working copy for the hot path; the database is the source of
