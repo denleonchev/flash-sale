@@ -38,7 +38,10 @@ export class GroqService {
         model: this.model,
         messages,
         temperature: 0.7,
-        max_tokens: 512,
+        // The default model reasons before it answers, and reasoning tokens count
+        // against this limit: at 512 a borderline case used the whole budget on
+        // reasoning and Groq returned 400 json_validate_failed with no answer.
+        max_tokens: 2048,
         response_format: { type: "json_object" },
       }),
     });
