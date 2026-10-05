@@ -14,6 +14,7 @@ export interface FraudAssessment {
   reason: string;
   pattern: string;
   vector: number[] | undefined;
+  similar: SimilarFlag[];
 }
 
 @Injectable()
@@ -29,7 +30,7 @@ export class FraudScreeningService {
   async screen(payload: FraudScreeningJobPayload): Promise<void> {
     const { orderId, buyerId, saleId } = payload;
     const activity = await this.repo.getBuyerActivity(buyerId, 60);
-    const { risk, reason, pattern, vector } = await this.assess(activity);
+    const { risk, reason, pattern, vector, similar } = await this.assess(activity);
 
     this.logger.log(`fraud screen order ${orderId}: risk=${risk}`);
     // FR-22: every verdict is stored; the RAG lookup reads only the confirmed ones.
@@ -41,6 +42,11 @@ export class FraudScreeningService {
       reason,
       pattern,
       embedding: vector ?? [],
+      citations: similar.map((flag, index) => ({
+        citedFlagId: flag.id,
+        position: index + 1,
+        distance: flag.distance,
+      })),
     });
     this.logger.log(`fraud flag created for order ${orderId} risk=${risk}`);
   }
@@ -49,7 +55,7 @@ export class FraudScreeningService {
     const pattern = this.buildPattern(activity);
     const { vector, similar } = await this.fetchSimilar(pattern);
     const { risk, reason } = await this.classify(pattern, similar);
-    return { risk, reason, pattern, vector };
+    return { risk, reason, pattern, vector, similar };
   }
 
   private buildPattern(activity: BuyerActivity): string {

@@ -12,6 +12,8 @@ export interface BuyerActivity {
 }
 
 export interface SimilarFlag {
+  id: string;
+  distance: number;
   pattern: string;
   risk: RiskLevel;
   reason: string;
@@ -25,6 +27,13 @@ interface CreateFlagData {
   reason: string;
   pattern: string;
   embedding?: number[];
+  citations: FlagCitation[];
+}
+
+export interface FlagCitation {
+  citedFlagId: string;
+  position: number;
+  distance: number;
 }
 
 // Tune against real data once the base grows.
@@ -61,9 +70,9 @@ export class FraudFlagsRepository {
     // Bare ORDER BY ... LIMIT over one table is the shape fraud_flags_embedding_hnsw can
     // serve; <-> is L2, matching the index opclass.
     return this.prisma.db.$queryRaw<SimilarFlag[]>`
-      SELECT pattern, risk, reason
+      SELECT id, distance, pattern, risk, reason
       FROM (
-        SELECT pattern, risk, reason, embedding <-> ${vectorStr}::vector AS distance
+        SELECT id, pattern, risk, reason, embedding <-> ${vectorStr}::vector AS distance
         FROM fraud_flags
         WHERE embedding IS NOT NULL
           AND status = ${FRAUD_FLAG_STATUSES.CONFIRMED}::"FraudFlagStatus"
@@ -71,6 +80,7 @@ export class FraudFlagsRepository {
         LIMIT ${limit}
       ) ranked
       WHERE distance < ${SIMILARITY_DISTANCE_THRESHOLD}
+      ORDER BY distance
     `;
   }
 
@@ -83,6 +93,7 @@ export class FraudFlagsRepository {
         risk: data.risk,
         reason: data.reason,
         pattern: data.pattern,
+        citations: { create: data.citations },
       },
       select: { id: true },
     });
