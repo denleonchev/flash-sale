@@ -126,6 +126,9 @@ After an order reaches `confirmed` or `sold_out` in the capture flow, a backgrou
 3. Finds similar past cases in Postgres via pgvector (L2 distance — embeddings are normalised, so L2 and cosine rank identically), restricted to flags a moderator confirmed
 4. Sends pattern + similar cases to Groq (LLaMA) for risk classification
 5. Stores a `fraud_flag` with the verdict — every screening, not just the risky ones; a moderator then confirms or rejects it, and only confirmed ones feed step 3
+6. Stores the similar cases from step 3 with the flag (`fraud_flag_citations`): which ones, in what order they went into the prompt, and how far each was
+
+Verdicts cite the cases they were built from — the moderator sees the evidence, not just the verdict. In the admin table a flag opens into a comparison: the order's own six signals on the first row, the cited precedents below it with their risk and reason. When a verdict looks wrong, this shows whether retrieval picked the wrong cases or the model misread the right ones.
 
 If Groq is rate-limited, unavailable, or returns an unusable answer, the job is retried and, if it still fails, no flag is stored — an order without a flag was not screened. The purchase flow is not affected.
 
