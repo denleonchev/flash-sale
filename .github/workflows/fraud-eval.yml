@@ -1,0 +1,58 @@
+name: Fraud screening eval
+on:
+  pull_request:
+    paths:
+      - "apps/worker/src/fraud/**"
+      - "apps/worker/src/ai/**"
+      - "apps/worker/src/embeds/embedding.service.ts"
+      - ".github/workflows/fraud-eval.yml"
+  push:
+    branches: [main]
+    paths:
+      - "apps/worker/src/fraud/**"
+      - "apps/worker/src/ai/**"
+      - "apps/worker/src/embeds/embedding.service.ts"
+      - ".github/workflows/fraud-eval.yml"
+  schedule:
+    - cron: "0 7 * * 1" # Monday 07:00 UTC
+  workflow_dispatch:
+
+jobs:
+  fraud-eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: flash
+          POSTGRES_PASSWORD: flash
+          POSTGRES_DB: flash_sale
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U flash -d flash_sale"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      DATABASE_URL: postgresql://flash:flash@localhost:5432/flash_sale?schema=public
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @flash-sale/db generate
+      - run: pnpm --filter @flash-sale/db migrate:deploy
+      - run: pnpm build
+
+      - name: Run fraud eval
+        run: pnpm --filter @flash-sale/worker eval:fraud
