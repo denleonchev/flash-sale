@@ -18,6 +18,34 @@ jobs:
       contents: read
       id-token: write
     steps:
+      # Migrations go first: the images never apply them (prisma is a devDependency and
+      # is not in the runtime image), so without this step new code can reach a database
+      # with an old schema. `migrate deploy` only applies committed migration files — it
+      # never diffs the schema, so it cannot drop the hnsw indexes the way `migrate dev`
+      # does. A failed migration stops the job before any container is replaced.
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --filter @flash-sale/db...
+        env:
+          # postinstall runs `prisma generate`, which reads DATABASE_URL but never
+          # connects; a placeholder keeps the real secret out of the install step.
+          DATABASE_URL: postgresql://user:pass@localhost:5432/flash_sale
+      - name: Apply database migrations
+        env:
+          # Environment secret (stage / production). Must be the DIRECT connection
+          # (port 5432), not the pooler — see packages/db/CLAUDE.md.
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "DATABASE_URL secret is not set for environment '${{ inputs.environment_name }}'" >&2
+            exit 1
+          fi
+          pnpm --filter @flash-sale/db migrate:deploy
+
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}

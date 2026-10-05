@@ -13,6 +13,10 @@ worker import `@flash-sale/db`. The data model's source of truth is
 
 - Migrations are applied by the human (the CLI connects to Supabase). The agent writes
   `schema.prisma` and commits migration files — never applies them.
+- The deploy job (`.github/workflows/deploy.yml`) runs `migrate:deploy` against the
+  target environment's database before it replaces the containers, so a committed
+  migration reaches stage and prod with the code that needs it. A migration must
+  therefore be safe for the old code that is still running while it applies.
 - Two steps, in this order: `pnpm migrate:new --name x` creates the migration without
   applying it, `pnpm migrate:deploy` applies what is pending. There is deliberately no
   `migrate:dev` script — plain `migrate dev` ends by offering to "fix" the schema drift
