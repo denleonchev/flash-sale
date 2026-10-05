@@ -85,25 +85,26 @@ export class FraudFlagsRepository {
   }
 
   async createFlag(data: CreateFlagData): Promise<void> {
-    const flag = await this.prisma.db.fraudFlag.create({
-      data: {
-        orderId: data.orderId,
-        buyerId: data.buyerId,
-        saleId: data.saleId,
-        risk: data.risk,
-        reason: data.reason,
-        pattern: data.pattern,
-        citations: { create: data.citations },
-      },
-      select: { id: true },
-    });
+    await this.prisma.db.$transaction(async (tx) => {
+      const flag = await tx.fraudFlag.create({
+        data: {
+          orderId: data.orderId,
+          buyerId: data.buyerId,
+          saleId: data.saleId,
+          risk: data.risk,
+          reason: data.reason,
+          pattern: data.pattern,
+          citations: { create: data.citations },
+        },
+        select: { id: true },
+      });
 
-    if (data.embedding && data.embedding.length > 0) {
-      const vectorStr = `[${data.embedding.join(",")}]`;
-      await this.prisma.db.$executeRawUnsafe(
-        `UPDATE fraud_flags SET embedding = '${vectorStr}'::vector WHERE id = $1`,
-        flag.id,
-      );
-    }
+      if (data.embedding && data.embedding.length > 0) {
+        const vectorStr = `[${data.embedding.join(",")}]`;
+        await tx.$executeRaw`
+          UPDATE fraud_flags SET embedding = ${vectorStr}::vector WHERE id = ${flag.id}
+        `;
+      }
+    });
   }
 }
