@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { RISK_LEVELS, type FraudScreeningJobPayload, type RiskLevel } from "@flash-sale/shared";
 import { FraudFlagsRepository } from "./fraud-flags.repository.js";
-import { GroqService, GroqRateLimitError } from "../ai/groq.service.js";
+import { GroqService } from "../ai/groq.service.js";
 import { EmbeddingService } from "../embeds/embedding.service.js";
 import { FRAUD_SYSTEM_PROMPT, FRAUD_FEW_SHOT_EXAMPLES } from "./fraud-screening.prompts.js";
 
@@ -20,7 +20,7 @@ export class FraudScreeningService {
     const activity = await this.repo.getBuyerActivity(buyerId, 60);
     const pattern = this.buildPattern(activity);
     const { vector, similar } = await this.fetchSimilar(pattern);
-    const { risk, reason } = await this.classify(orderId, pattern, similar);
+    const { risk, reason } = await this.classify(pattern, similar);
 
     this.logger.log(`fraud screen order ${orderId}: risk=${risk}`);
     // FR-22: every verdict is stored; the RAG lookup reads only the confirmed ones.
@@ -59,7 +59,6 @@ export class FraudScreeningService {
   }
 
   private async classify(
-    orderId: string,
     pattern: string,
     similar: Awaited<ReturnType<typeof this.repo.findSimilarFlags>>,
   ): Promise<{ risk: RiskLevel; reason: string }> {
@@ -70,28 +69,18 @@ export class FraudScreeningService {
           .join("\n")
       : "";
 
-    try {
-      const response = await this.groqService.chat([
-        { role: "system", content: FRAUD_SYSTEM_PROMPT },
-        {
-          role: "user",
-          content: `Current buyer pattern: ${pattern}\n\n${FRAUD_FEW_SHOT_EXAMPLES}${historicalContext}`,
-        },
-      ]);
-      const parsed = JSON.parse(response) as { risk?: string; reason?: string };
-      const parsedRisk = parsed.risk;
-      if ((Object.values(RISK_LEVELS) as string[]).includes(parsedRisk ?? "")) {
-        return { risk: parsedRisk as RiskLevel, reason: parsed.reason ?? "" };
-      }
-      this.logger.warn(`Groq returned unexpected risk value: "${parsedRisk}", defaulting to low`);
-    } catch (err) {
-      if (err instanceof GroqRateLimitError) throw err; // BullMQ retries with backoff
-      // FR-27: fail-safe — any other Groq error must not block or surface to the buyer.
-      this.logger.warn(
-        `Fraud screening error for order ${orderId}: ${String(err)}, defaulting to low`,
-      );
+    const response = await this.groqService.chat([
+      { role: "system", content: FRAUD_SYSTEM_PROMPT },
+      {
+        role: "user",
+        content: `Current buyer pattern: ${pattern}\n\n${FRAUD_FEW_SHOT_EXAMPLES}${historicalContext}`,
+      },
+    ]);
+    const parsed = JSON.parse(response) as { risk?: string; reason?: string };
+    const parsedRisk = parsed.risk;
+    if (!(Object.values(RISK_LEVELS) as string[]).includes(parsedRisk ?? "")) {
+      throw new Error(`Groq returned unexpected risk value: "${parsedRisk}"`);
     }
-
-    return { risk: RISK_LEVELS.LOW, reason: "" };
+    return { risk: parsedRisk as RiskLevel, reason: parsed.reason ?? "" };
   }
 }

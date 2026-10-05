@@ -127,7 +127,7 @@ After an order reaches `confirmed` or `sold_out` in the capture flow, a backgrou
 4. Sends pattern + similar cases to Groq (LLaMA) for risk classification
 5. Stores a `fraud_flag` with the verdict — every screening, not just the risky ones; a moderator then confirms or rejects it, and only confirmed ones feed step 3
 
-If Groq is rate-limited or the model is unavailable, the purchase flow is not affected.
+If Groq is rate-limited, unavailable, or returns an unusable answer, the job is retried and, if it still fails, no flag is stored — an order without a flag was not screened. The purchase flow is not affected.
 
 ---
 
