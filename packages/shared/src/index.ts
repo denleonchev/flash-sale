@@ -144,6 +144,16 @@ export const FRAUD_FLAG_STATUSES = {
 } as const;
 export type FraudFlagStatus = (typeof FRAUD_FLAG_STATUSES)[keyof typeof FRAUD_FLAG_STATUSES];
 
+export interface FraudFlagCitation {
+  flagId: string;
+  position: number;
+  distance: number;
+  pattern: string;
+  risk: RiskLevel;
+  reason: string;
+  status: FraudFlagStatus;
+}
+
 export interface FraudFlag {
   id: string;
   orderId: string;
@@ -158,6 +168,7 @@ export interface FraudFlag {
   status: FraudFlagStatus;
   createdAt: string;
   reviewedAt: string | null;
+  citations: FraudFlagCitation[];
 }
 
 /** Neither Zod nor class-validator live here — shared stays framework-agnostic. (FR-5) */

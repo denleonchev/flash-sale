@@ -17,6 +17,15 @@ function toDto(f: FraudFlagWithBuyer): FraudFlag {
     status: f.status as FraudFlag["status"],
     createdAt: f.createdAt.toISOString(),
     reviewedAt: f.reviewedAt?.toISOString() ?? null,
+    citations: f.citations.map((c) => ({
+      flagId: c.citedFlag.id,
+      position: c.position,
+      distance: c.distance,
+      pattern: c.citedFlag.pattern,
+      risk: c.citedFlag.risk as FraudFlag["risk"],
+      reason: c.citedFlag.reason,
+      status: c.citedFlag.status as FraudFlag["status"],
+    })),
   };
 }
 
