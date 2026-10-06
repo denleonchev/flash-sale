@@ -20,6 +20,7 @@ enum OrderStatus {
   confirmed
   sold_out
   failed
+  expired
 }
 
 /// A sale / drop (the "event"). State (upcoming/live/ended) is derived from time
@@ -84,6 +85,8 @@ model Order {
   // The worker counts confirmed orders per sale under SELECT FOR UPDATE on every
   // capture job — that read is what a higher worker concurrency would hit first.
   @@index([saleId, status])
+  // FR-28: reconciliation selects stale in_progress orders by age.
+  @@index([status, createdAt])
   @@map("orders")
 }
 

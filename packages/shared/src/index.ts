@@ -10,12 +10,14 @@
  * - `confirmed`   — worker committed; stock decremented in DB.
  * - `sold_out`    — guarded DB write found no remaining stock.
  * - `failed`      — payment failed; reserved unit released back to Redis.
+ * - `expired`     — checkout abandoned; closed by reconciliation, unit released. (FR-28)
  */
 export const ORDER_STATUSES = {
   IN_PROGRESS: "in_progress",
   CONFIRMED: "confirmed",
   SOLD_OUT: "sold_out",
   FAILED: "failed",
+  EXPIRED: "expired",
 } as const;
 
 export type OrderStatus = (typeof ORDER_STATUSES)[keyof typeof ORDER_STATUSES];
