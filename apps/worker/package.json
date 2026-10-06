@@ -9,7 +9,8 @@
     "start": "node --env-file-if-exists=../../.env --import ./dist/instrumentation.js dist/main.js",
     "dev": "tsc-watch --noClear --onSuccess \"node --env-file-if-exists=../../.env --import ./dist/instrumentation.js dist/main.js\"",
     "dev:debug": "tsc-watch --noClear --onSuccess \"node --env-file-if-exists=../../.env --import ./dist/instrumentation.js --inspect-brk=9230 dist/main.js\"",
-    "eval:fraud": "node --env-file-if-exists=../../.env dist/fraud/eval/main.js"
+    "eval:fraud": "node --env-file-if-exists=../../.env dist/fraud/eval/main.js",
+    "test:integration": "vitest run"
   },
   "dependencies": {
     "@flash-sale/db": "workspace:^",
@@ -36,8 +37,12 @@
     "stripe": "^22.2.3"
   },
   "devDependencies": {
+    "@nestjs/testing": "^11",
+    "@swc/core": "^1.16.13",
     "@types/node": "^25.9.3",
     "pino-pretty": "^13.1.3",
-    "tsc-watch": "^6.2.1"
+    "tsc-watch": "^6.2.1",
+    "unplugin-swc": "^2.0.0",
+    "vitest": "^4.1.9"
   }
 }

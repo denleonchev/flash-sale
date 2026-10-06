@@ -13,8 +13,33 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    # Postgres + Redis back the worker integration tests; same images as concurrency-check.yml.
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: flash
+          POSTGRES_PASSWORD: flash
+          POSTGRES_DB: flash_sale
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U flash -d flash_sale"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
     env:
-      DATABASE_URL: postgresql://user:pass@localhost:5432/flash_sale
+      DATABASE_URL: postgresql://flash:flash@localhost:5432/flash_sale?schema=public
+      REDIS_URL: redis://localhost:6379
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -27,6 +52,8 @@ jobs:
       - run: pnpm lint
       - run: pnpm build
       - run: pnpm -r test
+      - run: pnpm --filter @flash-sale/db migrate:deploy
+      - run: pnpm --filter @flash-sale/worker test:integration
 
   changes:
     runs-on: ubuntu-latest
@@ -242,7 +269,16 @@ jobs:
 
   deploy-stage:
     needs:
-      [test, changes, build-api, build-web-stage, build-worker, build-caddy, concurrency-check, e2e-check]
+      [
+        test,
+        changes,
+        build-api,
+        build-web-stage,
+        build-worker,
+        build-caddy,
+        concurrency-check,
+        e2e-check,
+      ]
     # Run if at least one build succeeded; skip if all were skipped (no relevant changes).
     if: |
       always() && (
