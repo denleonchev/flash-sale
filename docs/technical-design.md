@@ -165,6 +165,42 @@ sold-out on the hot path without touching the DB; Postgres gives the durable fin
 guarantee inside a transaction. The two layers serve different needs — speed vs.
 durability — and together close the oversell gap. (NFR-1)
 
+### Reconciliation of unfinished orders (FR-28)
+
+With the real payment provider an order leaves `in_progress` only when a provider
+event arrives. If the buyer abandons the checkout, or an event is lost, the order
+would hold its reserved unit forever. A repeatable worker job closes that gap: once
+a minute it takes orders that have been `in_progress` longer than
+`ORDER_RECONCILE_AFTER_MINUTES` (default 5), reads the PaymentIntent status from the
+provider and finalizes the order:
+
+| PaymentIntent status                       | Action                                             |
+| ------------------------------------------ | -------------------------------------------------- |
+| `requires_capture`                         | enqueue the capture job, as the webhook would      |
+| `requires_confirmation`, `requires_action` | order → `expired`, release the unit, cancel the PI |
+| `requires_payment_method`                  | order → `failed`, release the unit, cancel the PI  |
+| `canceled`                                 | order → `failed`, release the unit                 |
+| `processing`                               | leave it, check again on the next run              |
+| `succeeded`                                | leave it, log an error — needs a human             |
+
+**Why it is safe under concurrent access:**
+
+- Reconciliation competes with the failure webhook (api) and the capture job
+  (worker). All three change the order with `UPDATE ... WHERE status = in_progress`,
+  so exactly one of them makes the transition.
+- Only the party whose transition took effect releases the unit — never twice.
+- The order row is updated **before** the PI is cancelled. Cancelling first could let
+  the capture job write `confirmed` and then fail to capture a cancelled PI.
+- If the buyer pays at the very moment the order expires, the order stays `expired`
+  and cancelling the PI releases the hold. The cancel is a single call; if it fails
+  the error is logged and the hold lapses when the authorization expires.
+- A crash between the status write and the unit release leaves that unit stuck
+  (under-count, never oversell) — the same window the failure webhook has.
+- Reconciliation never writes `confirmed`. The sale-row lock in the capture job
+  stays the only authority on stock. (FR-15)
+
+It runs on its own queue so provider calls never delay capture jobs.
+
 ---
 
 ## 5. Data Model
@@ -187,9 +223,10 @@ purposes: fraud screening (order signal embeddings) and semantic search
   stored. (FR-1, FR-2)
 - **orders** — `id`, `sale_id`, `buyer_id` (base64url-encoded Auth0 `sub`),
   `idempotency_key` (unique per buyer+sale), `status` (in*progress | confirmed |
-  sold_out | failed), `payment_ref` *(Ext)\_, `acknowledged_at`, `created_at`. api
-  writes `in_progress` before enqueue; the worker transitions it to exactly one
-  terminal status. The unique key enforces idempotency at the DB level too.
+  sold_out | failed | expired), `payment_ref` *(Ext)\_, `acknowledged_at`,
+  `created_at`. api writes `in_progress` before enqueue; the worker transitions it to
+  exactly one terminal status. `expired` is an abandoned checkout closed by
+  reconciliation (FR-28). The unique key enforces idempotency at the DB level too.
   `acknowledged_at` is set when the buyer confirms receipt of the result; subsequent
   reconnect snapshots are suppressed once it is set. (FR-14, FR-19)
 - **fraud_flags** _(Ext)_ — `id`, `order_id`, `buyer_id`, `sale_id`, `risk`,

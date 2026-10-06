@@ -73,7 +73,7 @@ What the system does. Grouped by area.
   **test mode** (test keys, no real money). The provider's result event drives the
   same confirm/fail outcome as FR-11.
 - **FR-13 [Core]** Each order ends in exactly one final state: **confirmed**,
-  **sold out**, or **failed**.
+  **sold out**, **failed**, or **expired**.
 - **FR-14 [Core]** **Idempotency**: a repeated or double-submitted "Buy" from the
   same buyer for the same event does not create a second order or reserve a second
   unit.
@@ -84,6 +84,10 @@ What the system does. Grouped by area.
   its stock count, under any amount of concurrent buying. (No oversell.)
 - **FR-16 [Core]** Stock reserved for an order that later fails is returned to the
   available pool so it can be sold to someone else.
+- **FR-28 [Ext]** An order whose payment is not completed within a configured time
+  is finalized by the system itself: an abandoned checkout becomes **expired** and
+  its reserved stock is released; a payment that was authorized but never reported
+  back is processed as usual. Applies to the real payment provider (FR-12).
 
 ### 2.5 Real-time updates
 
@@ -180,6 +184,6 @@ How the system must behave, regardless of feature.
   NFR-11.
 - **Extensions (only after core, dropped first if time is short, in this order):**
   email (FR-23–25), fraud screening (FR-20–22), semantic search (FR-26), real
-  payment in test mode (FR-12).
+  payment in test mode (FR-12, FR-28).
   A complete, working core satisfies the product's purpose on its own. Extensions
   add value but are never built at the expense of the core.
