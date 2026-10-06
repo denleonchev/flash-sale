@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import Stripe from "stripe";
-import { PaymentGateway } from "./payment.gateway.js";
+import { PaymentGateway, type PaymentIntentStatus } from "./payment.gateway.js";
 
 @Injectable()
 export class StripePaymentService extends PaymentGateway {
@@ -30,5 +30,10 @@ export class StripePaymentService extends PaymentGateway {
       if (err instanceof Stripe.errors.StripeInvalidRequestError) return;
       throw err;
     }
+  }
+
+  async retrievePIStatus(paymentIntentId: string): Promise<PaymentIntentStatus> {
+    const pi = await this.stripe.paymentIntents.retrieve(paymentIntentId);
+    return pi.status;
   }
 }
