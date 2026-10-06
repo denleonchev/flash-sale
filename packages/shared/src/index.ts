@@ -28,6 +28,12 @@ export const ORDER_STATUS_VALUES = Object.values(ORDER_STATUSES) as [OrderStatus
 export const ORDER_QUEUE = "orders";
 // FR-12: Stripe authorize/capture — enqueued by the webhook when PI is capturable.
 export const CAPTURE_ORDER_JOB = "capture-order";
+export const CAPTURE_ORDER_JOB_OPTIONS = {
+  removeOnComplete: true,
+  removeOnFail: 100,
+  attempts: 3,
+  backoff: { type: "exponential", delay: 1_000 },
+} as const;
 
 export const SOCKET_EVENTS = {
   SALE_STOCK_SUBSCRIBE: "sale:stock:subscribe", // client → server (FR-17, FR-19)

@@ -6,6 +6,7 @@ import Stripe from "stripe";
 import {
   ORDER_QUEUE,
   CAPTURE_ORDER_JOB,
+  CAPTURE_ORDER_JOB_OPTIONS,
   ORDER_STATUSES,
   type CaptureOrderJobPayload,
 } from "@flash-sale/shared";
@@ -106,13 +107,7 @@ export class StripeWebhookService {
           idempotencyKey: order.idempotencyKey,
           traceparent: carrier["traceparent"],
         },
-        {
-          jobId: order.id,
-          removeOnComplete: true,
-          removeOnFail: 100,
-          attempts: 3,
-          backoff: { type: "exponential", delay: 1_000 },
-        },
+        { jobId: order.id, ...CAPTURE_ORDER_JOB_OPTIONS },
       );
     });
 
