@@ -82,8 +82,8 @@ export class OrdersService {
   // FR-14, FR-16: retry gets a unique suffix so the UNIQUE constraint is not violated across attempts.
   private async buildIdempotencyKey(buyerId: string, saleId: string): Promise<string> {
     const base = `${buyerId}-${saleId}`;
-    const failedCount = await this.ordersRepository.countFailedOrders(buyerId, saleId);
-    return failedCount > 0 ? `${base}-r${failedCount}` : base;
+    const retryableCount = await this.ordersRepository.countRetryableOrders(buyerId, saleId);
+    return retryableCount > 0 ? `${base}-r${retryableCount}` : base;
   }
 
   /**

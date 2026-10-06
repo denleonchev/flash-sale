@@ -20,6 +20,8 @@ const SNAPSHOT_STATUSES: OrderStatus[] = [
   ORDER_STATUSES.SOLD_OUT,
 ];
 
+const RETRYABLE_STATUSES: OrderStatus[] = [ORDER_STATUSES.FAILED, ORDER_STATUSES.EXPIRED];
+
 @Injectable()
 export class OrdersRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -35,9 +37,9 @@ export class OrdersRepository {
     });
   }
 
-  countFailedOrders(buyerId: string, saleId: string): Promise<number> {
+  countRetryableOrders(buyerId: string, saleId: string): Promise<number> {
     return this.prisma.db.order.count({
-      where: { buyerId, saleId, status: ORDER_STATUSES.FAILED },
+      where: { buyerId, saleId, status: { in: RETRYABLE_STATUSES } },
     });
   }
 
