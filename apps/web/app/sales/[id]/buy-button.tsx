@@ -24,6 +24,7 @@ type Props = {
  *  - confirmed / sold_out  → terminal message.
  *  - in_progress           → "Processing…" (durable socket state, FR-19).
  *  - failed                → form re-enabled so the buyer can retry with another card.
+ *  - expired               → form re-enabled; the checkout timed out (FR-28).
  *  - idle                  → buy form (with card field or simple button).
  */
 export function BuyButton({ saleId, signedIn, orderStatus }: Props) {
@@ -173,6 +174,11 @@ function StripeBuyForm({
           Payment failed. Please try again with a different card.
         </p>
       )}
+      {!isPending && orderStatus === ORDER_STATUSES.EXPIRED && !error && (
+        <p className="text-red-400 text-sm text-center">
+          Checkout timed out and your reservation was released. Please try again.
+        </p>
+      )}
     </form>
   );
 }
@@ -217,6 +223,11 @@ function SimpleBuyForm({
       </button>
       {!isPending && orderStatus === ORDER_STATUSES.FAILED && (
         <p className="text-red-400 text-sm text-center">Order failed. Please try again.</p>
+      )}
+      {!isPending && orderStatus === ORDER_STATUSES.EXPIRED && (
+        <p className="text-red-400 text-sm text-center">
+          Checkout timed out and your reservation was released. Please try again.
+        </p>
       )}
       {error && <p className="text-red-400 text-sm text-center">{error}</p>}
     </form>

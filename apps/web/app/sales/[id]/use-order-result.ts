@@ -26,7 +26,8 @@ export function useOrderResult(saleId: string): OrderStatus | null {
       if (
         parsed.data.status === ORDER_STATUSES.CONFIRMED ||
         parsed.data.status === ORDER_STATUSES.SOLD_OUT ||
-        parsed.data.status === ORDER_STATUSES.FAILED
+        parsed.data.status === ORDER_STATUSES.FAILED ||
+        parsed.data.status === ORDER_STATUSES.EXPIRED
       ) {
         socket.emit(SOCKET_EVENTS.ORDER_RESULT_UNSUBSCRIBE, {
           orderId: parsed.data.orderId,
