@@ -18,7 +18,7 @@ import { StockReleaseService } from "./stock-release.service.js";
 import { OrderResultPublisher } from "../realtime/order-result.publisher.js";
 import { PAYMENT_INTENT_STATUSES, PaymentGateway } from "../payment/payment.gateway.js";
 
-const DEFAULT_RECONCILE_AFTER_MINUTES = 5;
+const DEFAULT_RECONCILE_AFTER_MINUTES = 2;
 const RECONCILE_BATCH_SIZE = 50;
 
 function getReconcileAfterMs(): number {
