@@ -74,6 +74,10 @@ export interface CaptureOrderJobPayload {
   traceparent?: string;
 }
 
+// FR-28: own queue so provider calls never delay capture jobs on ORDER_QUEUE.
+export const ORDER_RECONCILIATION_QUEUE = "order-reconciliation";
+export const RECONCILE_ORDERS_JOB = "reconcile-orders";
+
 export interface OrderResult {
   buyerId: string;
   saleId: string;

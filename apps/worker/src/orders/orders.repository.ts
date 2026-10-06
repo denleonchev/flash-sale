@@ -11,6 +11,16 @@ export interface CaptureGuardedResult {
   readonly didTransition: boolean;
 }
 
+export interface StaleInProgressOrder {
+  readonly id: string;
+  readonly saleId: string;
+  readonly buyerId: string;
+  readonly idempotencyKey: string;
+  readonly paymentRef: string | null;
+}
+
+export type ReconciledOrderStatus = typeof OrderStatus.expired | typeof OrderStatus.failed;
+
 @Injectable()
 export class OrdersRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -71,5 +81,25 @@ export class OrdersRepository {
         didTransition,
       };
     });
+  }
+
+  findStaleInProgressOrders(createdBefore: Date, limit: number): Promise<StaleInProgressOrder[]> {
+    return this.prisma.db.order.findMany({
+      where: { status: OrderStatus.in_progress, createdAt: { lt: createdBefore } },
+      select: { id: true, saleId: true, buyerId: true, idempotencyKey: true, paymentRef: true },
+      orderBy: { createdAt: "asc" },
+      take: limit,
+    });
+  }
+
+  async closeInProgressOrder(
+    orderId: string,
+    status: ReconciledOrderStatus,
+  ): Promise<{ didTransition: boolean }> {
+    const { count } = await this.prisma.db.order.updateMany({
+      where: { id: orderId, status: OrderStatus.in_progress },
+      data: { status },
+    });
+    return { didTransition: count > 0 };
   }
 }
