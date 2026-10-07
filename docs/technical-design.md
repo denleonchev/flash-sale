@@ -234,6 +234,35 @@ transitions the order. The job names one order id, resolved when the page was
 requested, so an order the buyer creates afterwards is never touched; and while the
 old order is still `in_progress`, `api` does not create a new one for that buyer.
 
+### Reserved vs sold (FR-30)
+
+A unit can be **sold** (order `confirmed`) or **reserved** (order `in_progress`: taken
+in Redis, not paid yet). The Redis counter holds what can be bought right now:
+`stock_total − sold − reserved`.
+
+- **Rebuilding the counter.** When the Redis key is missing (restart, eviction), the
+  first reservation seeds it from Postgres as `stock_total − sold − reserved`. Seeding
+  `stock_total − sold` would hand reserved units out a second time; the capture job
+  would still refuse the extra buyers, but only after their cards were authorized.
+- **Releasing a unit never creates the key.** A release is "increment if the key
+  exists". A plain `INCRBY` on a missing key would create it with the value 1 and block
+  the rebuild, leaving the sale with one unit. Skipping is safe because the order row is
+  always updated before the release: the next rebuild no longer counts that order as
+  reserved.
+- **Rejection text.** If the reservation fails while `sold < stock_total`, the buyer is
+  told every unit is being checked out and may come back; only `sold = stock_total` is
+  "sold out".
+
+**Under concurrent access:** nothing changes on the reservation itself — it is still
+one atomic Lua call. Two accepted gaps, both under-counts that the sale-row lock in the
+capture job turns into "one unit sold late or not at all", never an oversell:
+
+- Between the Redis reservation and the order INSERT (the provider call sits in
+  between) the unit is reserved with no row. A key lost in that window is rebuilt one
+  unit too high.
+- An order closed between the rebuild's read and its `SET NX` is counted as reserved
+  while its release finds no key: the counter stays one unit too low.
+
 ---
 
 ## 5. Data Model

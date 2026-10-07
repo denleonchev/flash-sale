@@ -93,6 +93,11 @@ What the system does. Grouped by area.
   **expired** immediately and its reserved stock is released. A payment that is
   already authorized is not affected and is processed as usual. Applies to the real
   payment provider (FR-12).
+- **FR-30 [Ext]** When an order is rejected because every unit is held by unfinished
+  orders but not all units are sold, the buyer is told that stock may become available
+  again — not that the sale is sold out. Units held by unfinished orders are never
+  handed out a second time, including after the fast stock counter is lost and
+  rebuilt.
 
 ### 2.5 Real-time updates
 
@@ -189,6 +194,6 @@ How the system must behave, regardless of feature.
   NFR-11.
 - **Extensions (only after core, dropped first if time is short, in this order):**
   email (FR-23–25), fraud screening (FR-20–22), semantic search (FR-26), real
-  payment in test mode (FR-12, FR-28, FR-29).
+  payment in test mode (FR-12, FR-28, FR-29, FR-30).
   A complete, working core satisfies the product's purpose on its own. Extensions
   add value but are never built at the expense of the core.
