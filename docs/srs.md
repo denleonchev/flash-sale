@@ -65,7 +65,8 @@ What the system does. Grouped by area.
 - **FR-9 [Core]** Once stock is reserved, the request is **accepted immediately**
   and the order is queued for background processing; the buyer is told the order is
   being processed.
-- **FR-10 [Core]** Orders are processed **one at a time, in order of acceptance**.
+- **FR-10 [Core]** Orders are finalized **one at a time**. No particular order between
+  buyers is guaranteed.
 - **FR-11 [Core]** Processing a payment step uses a **simulated (fake) payment**
   that returns success or failure. On success the order becomes **confirmed**; on
   failure the reserved stock is **released** and the order becomes **failed**.

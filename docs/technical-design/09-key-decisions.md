@@ -5,6 +5,10 @@
   to remove parallelism during finalisation, Postgres for the durable guarantee.
   Most moving parts of any option; Postgres-only would suffice for tiny real load,
   but demonstrating the correct concurrent design is the point. (NFR-1, FR-10, FR-15)
+- **Capture queue: `concurrency: 1`, a deliberate limit of this version.** It keeps
+  capture jobs from competing for the same sale row. It does not order buyers and is
+  not what prevents overselling (§4 is). It is global, so one busy sale delays the
+  others. Next step: a queue with per-key message groups, e.g. Amazon SQS FIFO. (FR-10)
 - **Queue: BullMQ.** Runs on the Redis already present, so no new infrastructure;
   gives retries, backoff, delays, and concurrency control out of the box. Tied to
   Redis and not a general-purpose broker — RabbitMQ/Kafka would be the answer only

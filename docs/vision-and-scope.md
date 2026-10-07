@@ -23,7 +23,7 @@ in a clear order, and show everyone the live stock in real time.
   handles it in the background. The result is **confirmed** or **sold out**.
 - **Correctness** — three rules that must always hold:
   - **No overselling**: confirmed orders never go above the stock.
-  - **Ordered processing**: requests are handled one at a time, in order.
+  - **Serial processing**: orders are finalized one at a time.
   - **Idempotency**: a repeated or double-clicked request makes no extra order.
 - **Real-time** — the stock and the countdown update live for all users. Each buyer
   gets their own result in real time. Clients can reconnect if they drop.

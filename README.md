@@ -31,7 +31,7 @@ redis.call('DECRBY', KEYS[1], tonumber(ARGV[1]))
 return 1
 ```
 
-**2. Queue between the gate and the DB** — reserved orders go into BullMQ. Only winners get here: the Redis gate already turned everyone else away at "Buy", so the queue holds on the order of K jobs, not N. The worker currently runs them one at a time (`concurrency: 1`), which makes processing deterministic — but correctness does not depend on it. See [Ordering and fairness](#ordering-and-fairness).
+**2. Queue between the gate and the DB** — reserved orders go into BullMQ. Only winners get here: the Redis gate already turned everyone else away at "Buy", so the queue holds on the order of K jobs, not N. The worker currently runs them one at a time (`concurrency: 1`) so that capture jobs never compete for the same sale row — correctness does not depend on it, and it promises no order. See [Ordering and fairness](#ordering-and-fairness).
 
 **3. Postgres transaction with SELECT FOR UPDATE** — the worker locks the sale row and counts confirmed orders before writing the final status. `SELECT FOR UPDATE` serialises concurrent capture jobs for the same sale — at any worker concurrency. The DB cannot go below zero even if Redis and Postgres disagree.
 
@@ -52,7 +52,7 @@ The capture job is not enqueued by the purchase request. It is enqueued by the S
 
 So FIFO in the queue is the order in which payments were confirmed, not the order in which people clicked. Clicks in a drop are milliseconds apart; the payment side spreads them over seconds.
 
-Which means `concurrency: 1` buys reproducibility of someone else's ordering, not fairness. Stated plainly: the fastest payment wins, not the fastest click. For a flash sale that is defensible — the payment is authorised, the funds are held, the buyer is real.
+So `concurrency: 1` is not an ordering guarantee. It only keeps capture jobs from competing for the same sale row. Stated plainly: the fastest payment wins, not the fastest click. For a flash sale that is defensible — the payment is authorised, the funds are held, the buyer is real.
 
 The only place where click order still exists is the single-threaded Lua script. If fairness ever has to become a property of the system, the rank is taken there — an `INCR` next to the `DECRBY` — and the processing order stops meaning anything.
 
@@ -152,13 +152,13 @@ confirmed + sold_out + failed == accepted
 
 ## Known limits and scaling path
 
-`concurrency: 1` is global, not per sale: one busy drop delays the capture jobs of every other sale.
+`concurrency: 1` is a deliberate limit of the current version, and it is global, not per sale: one busy drop delays the capture jobs of every other sale.
 
 `capturePI()` is a network call inside the job — it runs after the transaction commits, but still on the queue's critical path, so the ceiling is Stripe's latency rather than the database.
 
 Raising the concurrency runs first into the confirmed-count read under the row lock, which is why `orders(sale_id, status)` carries an index. After that, in order: the Supabase connection pool, Stripe's rate limits (BullMQ's `limiter` is the lever), and CPU contention with the local embedding jobs on a single e2-micro.
 
-Serialising per sale without giving up parallelism, if it is ever needed: `hash(saleId) % M` queues, each with `concurrency: 1`. The same guarantee per sale, M sales in flight, no BullMQ Pro licence.
+Running sales in parallel while keeping one sale serial needs per-key partitioning. BullMQ has it only in the paid Pro edition; the intended path is a queue with message groups, e.g. Amazon SQS FIFO with the sale id as the group id.
 
 ---
 
