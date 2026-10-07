@@ -155,7 +155,11 @@ export class OrdersService {
     priceCents: number,
   ): Promise<BuyResult> {
     const reserved = await this.stockService.reserveStock(dto.saleId, dto.quantity);
-    if (!reserved) throw new ConflictException("sold out");
+    if (!reserved) {
+      throw new ConflictException(
+        "All units are being checked out right now. Try again in a moment.",
+      );
+    }
 
     const traceCarrier: Record<string, string> = {};
     propagation.inject(context.active(), traceCarrier);
