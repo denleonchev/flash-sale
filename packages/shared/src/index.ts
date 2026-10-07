@@ -49,6 +49,20 @@ export function getSaleRoomId(saleId: string): string {
 
 export const getStockKey = (saleId: string) => `stock:${saleId}`;
 
+/**
+ * Releases reserved units back to the Redis counter — only if the key exists. (FR-16, FR-30)
+ * KEYS[1] = stock key, ARGV[1] = quantity. Returns the new count, or -1 when skipped.
+ *
+ * A plain INCRBY on a missing key would create it with the value 1 and block the rebuild
+ * from Postgres, leaving the sale with one unit. Skipping is safe: the order row is always
+ * updated before the release, so the next rebuild no longer counts it as reserved.
+ * Shared so api and worker cannot drift apart on this rule.
+ */
+export const RELEASE_STOCK_SCRIPT = `
+if redis.call('EXISTS', KEYS[1]) == 0 then return -1 end
+return redis.call('INCRBY', KEYS[1], tonumber(ARGV[1]))
+`;
+
 export function getUserRoomId(buyerId: string): string {
   return `user:${buyerId}`;
 }

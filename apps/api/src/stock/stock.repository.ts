@@ -1,6 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common";
 import type { Redis } from "ioredis";
-import { getStockKey } from "@flash-sale/shared";
+import { RELEASE_STOCK_SCRIPT, getStockKey } from "@flash-sale/shared";
 
 export { getStockKey };
 
@@ -31,7 +31,7 @@ export class StockRepository {
   }
 
   async incrementStock(key: string, qty: number): Promise<void> {
-    await this.redis.incrby(key, qty);
+    await this.redis.eval(RELEASE_STOCK_SCRIPT, 1, key, qty);
   }
 
   async setStockIfAbsent(key: string, value: number): Promise<void> {

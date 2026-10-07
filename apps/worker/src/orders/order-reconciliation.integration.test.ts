@@ -189,6 +189,16 @@ describe("OrderReconciliationService", () => {
     expect(paymentGateway.cancelPI).toHaveBeenCalledWith(paymentRef);
   });
 
+  it("does not recreate a lost stock key when it releases a unit", async () => {
+    const { orderId, saleId } = await seedOrder(PAYMENT_INTENT_STATUSES.REQUIRES_CONFIRMATION);
+    await redis.del(getStockKey(saleId));
+
+    await service.reconcileStaleOrders();
+
+    expect(await readOrderStatus(orderId)).toBe(OrderStatus.expired);
+    expect(await redis.exists(getStockKey(saleId))).toBe(0);
+  });
+
   it("lets only one of two concurrent closes transition the order", async () => {
     const { orderId } = await seedOrder(PAYMENT_INTENT_STATUSES.REQUIRES_CONFIRMATION);
 
