@@ -7,7 +7,7 @@ them here.
 ## What this service is
 
 Nest HTTP API, and later a Socket.IO gateway. It answers requests fast and does no
-slow work itself — see `docs/technical-design.md` §3.2. The queue and the database are
+slow work itself — see `docs/technical-design/03-components.md` §3.2. The queue and the database are
 added later, in S-E0.2 and S-E0.4.
 
 ## ESM: things to watch out for

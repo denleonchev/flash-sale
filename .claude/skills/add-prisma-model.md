@@ -7,7 +7,7 @@ How to add or modify a database model in this repo.
 1. Edit the Prisma schema (`apps/api` or a shared prisma package, wherever the
    schema lives in this repo) to add/change the model.
 2. Keep names and fields aligned with the data model in
-   `docs/technical-design.md` (section 5). If you need a field that isn't there,
+   `docs/technical-design/05-data-model.md` (section 5). If you need a field that isn't there,
    flag it.
 3. If the change affects types used across services, update `packages/shared`
    too, so api and worker agree.

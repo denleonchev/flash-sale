@@ -1,5 +1,5 @@
 // Prisma schema for the flash-sale platform.
-// Source of truth for the data model is docs/technical-design.md §5.
+// Source of truth for the data model is docs/technical-design/05-data-model.md (§5).
 
 generator client {
   provider = "prisma-client-js"

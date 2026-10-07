@@ -191,6 +191,10 @@ flash-sale/
 │   ├── api/      HTTP + Socket.IO
 │   ├── worker/   order processing, fraud, embeddings
 │   └── web/      Next.js frontend
+├── docs/
+│   ├── vision-and-scope.md  why the product exists
+│   ├── srs.md               requirements (FR-/NFR-/UR-)
+│   └── technical-design/    how it is built — one file per section, start at README.md
 └── packages/
     ├── shared/         queue job types, socket events, enums (imported by api and worker)
     ├── telemetry/      tracing + log wiring, vendor-neutral

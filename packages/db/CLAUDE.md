@@ -7,7 +7,7 @@ apply. Do not repeat them here. See also `.claude/skills/add-prisma-model.md`.
 
 The one Prisma schema, migrations and generated client for the whole repo. api and
 worker import `@flash-sale/db`. The data model's source of truth is
-`docs/technical-design.md` §5.
+`docs/technical-design/05-data-model.md` (§5).
 
 ## Rules
 

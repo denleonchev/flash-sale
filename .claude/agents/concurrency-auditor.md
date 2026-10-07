@@ -7,7 +7,8 @@ stock reservation, the order queue, or stock confirmation.
 
 Find race conditions and oversell paths that "look fine" but break under concurrent
 load. This is the project's highest-risk area (see `.claude/rules/concurrency.md`).
-The design under audit is in `docs/technical-design.md` §4 — interrogate the code
+The design under audit is in `docs/technical-design/04-purchase-flow.md` (§4) and
+`docs/technical-design/10-order-lifecycle.md` (§10) — interrogate the code
 against it; do not re-derive the mechanism here.
 
 ## What to interrogate

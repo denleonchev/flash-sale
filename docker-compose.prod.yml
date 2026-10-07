@@ -5,7 +5,7 @@
 #
 # Runs caddy / web / api / worker in containers on a single host. The databases are NOT
 # here — they are external managed services (Supabase Postgres + Upstash Redis),
-# reached via DATABASE_URL / REDIS_URL in .env (technical-design §8).
+# reached via DATABASE_URL / REDIS_URL in .env (docs/technical-design/ §8).
 #
 # All config (incl. the external DB URLs) comes from .env. No secrets in this file.
 #

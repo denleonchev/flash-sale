@@ -5,7 +5,7 @@ This file adds rules only for web. The root `CLAUDE.md` and `.claude/rules/*`
 
 ## What this service is
 
-The Next.js frontend (App Router) — see `docs/technical-design.md` §3.1. It renders
+The Next.js frontend (App Router) — see `docs/technical-design/03-components.md` §3.1. It renders
 the drop page and, later, live stock and order status. The real UI starts in S-1.1.
 
 ## Toolchain

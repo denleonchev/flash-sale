@@ -1,6 +1,6 @@
 /**
  * Single contract between `api` and `worker` — import from here, never redefine.
- * See docs/technical-design.md §4 (Purchase Flow) and §5 (Data Model).
+ * See docs/technical-design/ §4 (Purchase Flow) and §5 (Data Model).
  */
 
 /**

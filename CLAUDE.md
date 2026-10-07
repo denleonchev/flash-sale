@@ -16,7 +16,8 @@ them; do not invent requirements.
 
 - `docs/vision-and-scope.md` — why the product exists and its boundaries.
 - `docs/srs.md` — what the system must do (requirements with IDs FR-/NFR-/UR-).
-- `docs/technical-design.md` — how it is built (architecture, flows, data model).
+- `docs/technical-design/` — how it is built (architecture, flows, data model). One
+  file per section; start from its `README.md` and open only the sections you need.
 
 When code and docs disagree, stop and ask — do not silently diverge.
 

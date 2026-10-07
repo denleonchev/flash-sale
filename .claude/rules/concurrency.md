@@ -4,9 +4,10 @@ This is the most important and most error-prone part of the system. AI tends to
 produce concurrency code that looks correct, compiles, passes a casual manual test,
 and is still wrong under real concurrent load. Treat it accordingly.
 
-**The design is canonical in `docs/technical-design.md` §4 (Purchase Flow).** This
-file does not restate the mechanism — read §4 for _how_ it works and _why_ it is
-correct. This file is the _operating rule_ for working on that code.
+**The design is canonical in `docs/technical-design/04-purchase-flow.md` (§4) and, for
+orders that do not finish on their own (reconciliation, stock release, counter rebuild),
+`docs/technical-design/10-order-lifecycle.md` (§10).** This file does not restate the
+mechanism — read those for _how_ it works and _why_ it is correct. This file is the _operating rule_ for working on that code.
 
 ## Hard rules
 
@@ -16,7 +17,7 @@ correct. This file is the _operating rule_ for working on that code.
   happens when two buyers hit the last unit at the same time.
 - Never describe such code as "done" or "working" without that reasoning. The human
   verifies it manually before it is trusted.
-- Follow the design in §4. Do not introduce a new concurrency approach without
+- Follow the design in §4 and §10. Do not introduce a new concurrency approach without
   flagging it and explaining the trade-off versus the documented design.
 
 ## When unsure

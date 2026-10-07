@@ -37,7 +37,7 @@ export class StockService {
     if (!sale) return;
     const reserved = await this.salesRepo.countReservedOrders(saleId);
     // FR-30: subtract reserved too, or a rebuilt counter hands held units out again.
-    // The two reads are not one snapshot — see technical-design.md §4 "Reserved vs sold"
+    // The two reads are not one snapshot — see docs/technical-design/ §10 "Reserved vs sold"
     // for the accepted off-by-one windows (never an oversell).
     const available = Math.max(0, sale.stockTotal - sale._count.orders - reserved);
     await this.stockRepo.setStockIfAbsent(key, available);

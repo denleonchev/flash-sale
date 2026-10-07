@@ -3,7 +3,7 @@
 # Brings up only the data stores — Postgres (+pgvector) and Redis. The apps
 # (web/api/worker) run on the HOST via pnpm and connect here over localhost.
 # In production the apps run in containers and these stores are external
-# managed services instead (see docker-compose.prod.yml, technical-design §8).
+# managed services instead (see docker-compose.prod.yml, docs/technical-design/ §8).
 #
 #   docker compose up -d
 #
