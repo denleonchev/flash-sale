@@ -31,6 +31,11 @@ export class SalesRepository {
     });
   }
 
+  // FR-30: units held by unfinished orders — taken in Redis, not paid yet.
+  countReservedOrders(saleId: string): Promise<number> {
+    return this.prisma.db.order.count({ where: { saleId, status: "in_progress" } });
+  }
+
   // Includes confirmed count to avoid N+1 on listing.
   findAll(): Promise<Array<Sale & { _count: { orders: number } }>> {
     return this.prisma.db.sale.findMany({
