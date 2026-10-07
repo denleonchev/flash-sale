@@ -12,7 +12,7 @@ import {
 import {
   OrdersRepository,
   type ReconciledOrderStatus,
-  type StaleInProgressOrder,
+  type InProgressOrder,
 } from "./orders.repository.js";
 import { StockReleaseService } from "./stock-release.service.js";
 import { OrderResultPublisher } from "../realtime/order-result.publisher.js";
@@ -42,10 +42,7 @@ export class OrderReconciliationService {
 
   async reconcileStaleOrders(): Promise<void> {
     const createdBefore = new Date(Date.now() - getReconcileAfterMs());
-    const orders = await this.ordersRepo.findStaleInProgressOrders(
-      createdBefore,
-      RECONCILE_BATCH_SIZE,
-    );
+    const orders = await this.ordersRepo.findInProgressOrders(createdBefore, RECONCILE_BATCH_SIZE);
 
     for (const order of orders) {
       try {
@@ -56,7 +53,13 @@ export class OrderReconciliationService {
     }
   }
 
-  private async reconcileOrder(order: StaleInProgressOrder): Promise<void> {
+  async reconcileOrderById(orderId: string): Promise<void> {
+    const order = await this.ordersRepo.findInProgressOrderById(orderId);
+    if (!order) return;
+    await this.reconcileOrder(order);
+  }
+
+  private async reconcileOrder(order: InProgressOrder): Promise<void> {
     if (!order.paymentRef) {
       await this.closeOrder(order, OrderStatus.expired);
       return;
@@ -93,7 +96,7 @@ export class OrderReconciliationService {
   }
 
   private async closeOrder(
-    order: StaleInProgressOrder,
+    order: InProgressOrder,
     status: ReconciledOrderStatus,
     paymentIntentIdToCancel?: string,
   ): Promise<void> {
@@ -126,10 +129,7 @@ export class OrderReconciliationService {
     this.logger.log(`reconciled order ${order.id} -> ${status}`);
   }
 
-  private async enqueueCapture(
-    order: StaleInProgressOrder,
-    paymentIntentId: string,
-  ): Promise<void> {
+  private async enqueueCapture(order: InProgressOrder, paymentIntentId: string): Promise<void> {
     const existing = await this.captureQueue.getJob(order.id);
     if (existing && (await existing.isFailed())) {
       await existing.retry();

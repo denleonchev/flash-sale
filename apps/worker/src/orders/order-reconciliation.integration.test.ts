@@ -228,4 +228,53 @@ describe("OrderReconciliationService", () => {
     expect(await readStock(saleId)).toBe(INITIAL_STOCK);
     expect(paymentGateway.retrievePIStatus).not.toHaveBeenCalledWith(paymentRef);
   });
+
+  describe("reconcileOrderById", () => {
+    const YOUNG_ORDER_AGE_MS = 30_000;
+
+    it("expires an unauthorized order regardless of its age", async () => {
+      const { orderId, saleId, paymentRef } = await seedOrder(
+        PAYMENT_INTENT_STATUSES.REQUIRES_ACTION,
+        YOUNG_ORDER_AGE_MS,
+      );
+
+      await service.reconcileOrderById(orderId);
+
+      expect(await readOrderStatus(orderId)).toBe(OrderStatus.expired);
+      expect(await readStock(saleId)).toBe(INITIAL_STOCK + 1);
+      expect(paymentGateway.cancelPI).toHaveBeenCalledTimes(1);
+      expect(paymentGateway.cancelPI).toHaveBeenCalledWith(paymentRef);
+    });
+
+    it("sends an authorized order to capture instead of expiring it", async () => {
+      const { orderId, saleId } = await seedOrder(
+        PAYMENT_INTENT_STATUSES.REQUIRES_CAPTURE,
+        YOUNG_ORDER_AGE_MS,
+      );
+
+      await service.reconcileOrderById(orderId);
+
+      expect(await captureQueue.getJob(orderId)).toBeDefined();
+      expect(await readOrderStatus(orderId)).toBe(OrderStatus.in_progress);
+      expect(await readStock(saleId)).toBe(INITIAL_STOCK);
+      expect(paymentGateway.cancelPI).not.toHaveBeenCalled();
+    });
+
+    it("ignores an order that is no longer in_progress", async () => {
+      const { orderId, saleId, paymentRef } = await seedOrder(
+        PAYMENT_INTENT_STATUSES.REQUIRES_CONFIRMATION,
+        YOUNG_ORDER_AGE_MS,
+      );
+      await prisma.db.order.update({
+        where: { id: orderId },
+        data: { status: OrderStatus.confirmed },
+      });
+
+      await service.reconcileOrderById(orderId);
+
+      expect(await readOrderStatus(orderId)).toBe(OrderStatus.confirmed);
+      expect(await readStock(saleId)).toBe(INITIAL_STOCK);
+      expect(paymentGateway.retrievePIStatus).not.toHaveBeenCalledWith(paymentRef);
+    });
+  });
 });

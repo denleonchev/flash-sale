@@ -11,7 +11,7 @@ export interface CaptureGuardedResult {
   readonly didTransition: boolean;
 }
 
-export interface StaleInProgressOrder {
+export interface InProgressOrder {
   readonly id: string;
   readonly saleId: string;
   readonly buyerId: string;
@@ -83,12 +83,19 @@ export class OrdersRepository {
     });
   }
 
-  findStaleInProgressOrders(createdBefore: Date, limit: number): Promise<StaleInProgressOrder[]> {
+  findInProgressOrders(createdBefore: Date, limit: number): Promise<InProgressOrder[]> {
     return this.prisma.db.order.findMany({
       where: { status: OrderStatus.in_progress, createdAt: { lt: createdBefore } },
       select: { id: true, saleId: true, buyerId: true, idempotencyKey: true, paymentRef: true },
       orderBy: { createdAt: "asc" },
       take: limit,
+    });
+  }
+
+  findInProgressOrderById(orderId: string): Promise<InProgressOrder | null> {
+    return this.prisma.db.order.findFirst({
+      where: { id: orderId, status: OrderStatus.in_progress },
+      select: { id: true, saleId: true, buyerId: true, idempotencyKey: true, paymentRef: true },
     });
   }
 

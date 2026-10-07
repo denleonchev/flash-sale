@@ -1,6 +1,11 @@
 import { Processor, WorkerHost } from "@nestjs/bullmq";
 import { Job } from "bullmq";
-import { ORDER_RECONCILIATION_QUEUE, RECONCILE_ORDERS_JOB } from "@flash-sale/shared";
+import {
+  ORDER_RECONCILIATION_QUEUE,
+  RECONCILE_ORDER_JOB,
+  RECONCILE_ORDERS_JOB,
+  type ReconcileOrderJobPayload,
+} from "@flash-sale/shared";
 import { OrderReconciliationService } from "./order-reconciliation.service.js";
 import { runWithJobTrace } from "../tracing/with-job-trace.js";
 
@@ -11,7 +16,15 @@ export class OrderReconciliationProcessor extends WorkerHost {
   }
 
   async process(job: Job): Promise<void> {
-    if (job.name !== RECONCILE_ORDERS_JOB) return;
-    await runWithJobTrace(job.name, {}, () => this.reconciliation.reconcileStaleOrders());
+    if (job.name === RECONCILE_ORDERS_JOB) {
+      await runWithJobTrace(job.name, {}, () => this.reconciliation.reconcileStaleOrders());
+      return;
+    }
+    if (job.name === RECONCILE_ORDER_JOB) {
+      const data = job.data as ReconcileOrderJobPayload;
+      await runWithJobTrace(job.name, data, () =>
+        this.reconciliation.reconcileOrderById(data.orderId),
+      );
+    }
   }
 }
