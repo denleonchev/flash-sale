@@ -5,6 +5,7 @@ import { apiFetch } from "@/lib/api";
 import { getSession } from "@/lib/session";
 import { encodeBuyerId } from "@/lib/buyer-id";
 import { mintAdminTicket } from "@/lib/admin-ticket";
+import { abandonCheckout } from "./abandon-checkout";
 
 export type BuyState = {
   errorMessage?: string;
@@ -58,6 +59,16 @@ export async function buyAction(saleId: string, paymentMethodId?: string): Promi
     clientSecret?: string;
   };
   return { idempotencyKey: body.idempotencyKey, clientSecret: body.clientSecret };
+}
+
+/**
+ * FR-29: called once when the sale page mounts in the browser. Identity comes from the
+ * session server-side (NFR-9).
+ */
+export async function abandonCheckoutAction(saleId: string): Promise<void> {
+  const session = await getSession();
+  if (!session) return;
+  await abandonCheckout(saleId, encodeBuyerId(session.user.sub));
 }
 
 export async function endSaleAction(saleId: string, _formData: FormData): Promise<void> {

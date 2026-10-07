@@ -1,9 +1,9 @@
 import { apiFetch } from "@/lib/api";
 
 /**
- * FR-29: requesting the sale page means an unauthorized payment was given up. The api
- * only enqueues the check, so this adds no provider latency to the page.
- * Never throws — the page must render even if the call fails; the scheduled
+ * FR-29: asks the api to reconcile the buyer's unfinished order now. The api only
+ * enqueues the check, so no provider latency is added here.
+ * Never throws — a failed call must not block the buy form; the scheduled
  * reconciliation (FR-28) still closes the order later.
  */
 export async function abandonCheckout(saleId: string, buyerId: string): Promise<void> {

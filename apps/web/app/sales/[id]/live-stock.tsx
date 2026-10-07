@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { abandonCheckoutAction } from "./actions";
 import { BuyButton } from "./buy-button";
 import { Countdown } from "./countdown";
 import { useSaleStock } from "./use-sale-stock";
@@ -25,6 +27,23 @@ export function LiveStock({
 }) {
   const stock = useSaleStock(saleId, initialStock);
   const orderStatus = useOrderResult(saleId);
+  const [checkoutReady, setCheckoutReady] = useState(!signedIn);
+
+  // FR-29: a browser mount is the only reliable "the buyer opened the page" signal. A
+  // server render is not — Next re-renders the route after server actions too, including
+  // the buy action itself, which would cancel a payment that is still in 3DS.
+  // Buy stays disabled until the call returns, so it can never hit an order created
+  // by this page.
+  useEffect(() => {
+    if (!signedIn) return;
+    let active = true;
+    void abandonCheckoutAction(saleId).finally(() => {
+      if (active) setCheckoutReady(true);
+    });
+    return () => {
+      active = false;
+    };
+  }, [saleId, signedIn]);
 
   if (stock <= 0) {
     return <p className="text-center text-zinc-400 font-semibold py-2">Sold out</p>;
@@ -44,7 +63,12 @@ export function LiveStock({
           <p className="font-mono text-2xl font-bold text-red-400">{stock}</p>
         </div>
       </div>
-      <BuyButton saleId={saleId} signedIn={signedIn} orderStatus={orderStatus} />
+      <BuyButton
+        saleId={saleId}
+        signedIn={signedIn}
+        orderStatus={orderStatus}
+        ready={checkoutReady}
+      />
     </div>
   );
 }

@@ -208,7 +208,8 @@ looking at "Processing…" for minutes. Reloading discards the card form and any
 window, so a request for the sale page is treated as the buyer giving up on a payment
 that has not been authorized yet.
 
-When `web` renders the sale page for a signed-in buyer it calls `POST /orders/abandon`.
+When the sale page mounts in the browser for a signed-in buyer, `web` calls
+`POST /orders/abandon` (through a server action, so the buyer id comes from the session).
 If the buyer has an `in_progress` order for that sale, `api` enqueues a
 `reconcile-order` job carrying that order's id on the reconciliation queue. The worker
 runs the same decision table as above for that one order, ignoring its age. The call
@@ -217,8 +218,12 @@ and the buyer gets the outcome over Socket.IO.
 
 - An authorized payment (`requires_capture`) is **not** abandoned: the capture job is
   enqueued and the order ends `confirmed` or `sold_out` as usual.
-- The trigger is the page request, never a socket reconnect — a reconnect also happens
-  on a network blip while the buyer is still inside 3DS.
+- The trigger is the page mounting in the browser. Not a server render — Next re-renders
+  the route after server actions too, including the buy action itself — and not a socket
+  reconnect, which also happens on a network blip. Either would cancel a payment that is
+  still inside 3DS.
+- Buy stays disabled until the call returns, so the check can never hit an order created
+  from the same page.
 - Opening the sale in a second tab or on another device is indistinguishable from a
   reload and cancels the payment in the first one. Accepted: no money is lost.
 

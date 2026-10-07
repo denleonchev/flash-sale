@@ -1,9 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { notFound } from "next/navigation";
-import { encodeBuyerId } from "@/lib/buyer-id";
 import { getSession } from "@/lib/session";
-import { abandonCheckout } from "./abandon-checkout";
 import { Countdown } from "./countdown";
 import { EndNowButton } from "./end-now-button";
 import { getSale } from "./get-sale";
@@ -18,15 +16,12 @@ import { Badge } from "@/components/ui/badge";
  */
 export default async function SalePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const session = await getSession();
-  const [sale] = await Promise.all([
-    getSale(id),
-    session ? abandonCheckout(id, encodeBuyerId(session.user.sub)) : undefined,
-  ]);
+  const sale = await getSale(id);
   if (!sale) {
     notFound();
   }
 
+  const session = await getSession();
   const isAdmin = session?.isAdmin ?? false;
   const soldOut = sale.state === "ended" && sale.remainingStock <= 0;
   // FR-17: live stock, countdown and Buy for an in-progress sale render client-side

@@ -10,6 +10,8 @@ type Props = {
   saleId: string;
   signedIn: boolean;
   orderStatus: OrderStatus | null;
+  /** false until the page-load checkout check has returned (FR-29). */
+  ready: boolean;
 };
 
 /**
@@ -27,7 +29,7 @@ type Props = {
  *  - expired               → form re-enabled; the checkout was abandoned (FR-28, FR-29).
  *  - idle                  → buy form (with card field or simple button).
  */
-export function BuyButton({ saleId, signedIn, orderStatus }: Props) {
+export function BuyButton({ saleId, signedIn, orderStatus, ready }: Props) {
   const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null);
 
   useEffect(() => {
@@ -50,12 +52,12 @@ export function BuyButton({ saleId, signedIn, orderStatus }: Props) {
   if (stripePromise) {
     return (
       <Elements stripe={stripePromise} options={{ locale: "en" }}>
-        <StripeBuyForm saleId={saleId} orderStatus={orderStatus} />
+        <StripeBuyForm saleId={saleId} orderStatus={orderStatus} ready={ready} />
       </Elements>
     );
   }
 
-  return <SimpleBuyForm saleId={saleId} orderStatus={orderStatus} />;
+  return <SimpleBuyForm saleId={saleId} orderStatus={orderStatus} ready={ready} />;
 }
 
 function CopyCardButton({ label, number }: { label: string; number: string }) {
@@ -81,9 +83,11 @@ function CopyCardButton({ label, number }: { label: string; number: string }) {
 function StripeBuyForm({
   saleId,
   orderStatus,
+  ready,
 }: {
   saleId: string;
   orderStatus: OrderStatus | null;
+  ready: boolean;
 }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -101,7 +105,7 @@ function StripeBuyForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!stripe || !elements || isProcessing) return;
+    if (!stripe || !elements || isProcessing || !ready) return;
     setError(null);
 
     const cardElement = elements.getElement(CardElement);
@@ -163,7 +167,7 @@ function StripeBuyForm({
       </div>
       <button
         type="submit"
-        disabled={isProcessing || !stripe}
+        disabled={isProcessing || !ready || !stripe}
         className="w-full py-3 rounded-md bg-red-600 hover:bg-red-500 disabled:bg-zinc-800 disabled:text-zinc-600 text-white font-semibold transition-colors"
       >
         {isProcessing ? "Processing…" : "Buy now"}
@@ -187,9 +191,11 @@ function StripeBuyForm({
 function SimpleBuyForm({
   saleId,
   orderStatus,
+  ready,
 }: {
   saleId: string;
   orderStatus: OrderStatus | null;
+  ready: boolean;
 }) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -205,7 +211,7 @@ function SimpleBuyForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isProcessing) return;
+    if (isProcessing || !ready) return;
     setError(null);
     startTransition(async () => {
       const result: BuyState = await buyAction(saleId);
@@ -217,7 +223,7 @@ function SimpleBuyForm({
     <form onSubmit={handleSubmit} className="space-y-3">
       <button
         type="submit"
-        disabled={isProcessing}
+        disabled={isProcessing || !ready}
         className="w-full py-3 rounded-md bg-red-600 hover:bg-red-500 disabled:bg-zinc-800 disabled:text-zinc-600 text-white font-semibold transition-colors"
       >
         {isProcessing ? "Processing…" : "Buy now"}
