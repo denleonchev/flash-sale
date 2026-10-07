@@ -171,7 +171,7 @@ With the real payment provider an order leaves `in_progress` only when a provide
 event arrives. If the buyer abandons the checkout, or an event is lost, the order
 would hold its reserved unit forever. A repeatable worker job closes that gap: once
 a minute it takes orders that have been `in_progress` longer than
-`ORDER_RECONCILE_AFTER_MINUTES` (default 5), reads the PaymentIntent status from the
+`ORDER_RECONCILE_AFTER_MINUTES` (default 2), reads the PaymentIntent status from the
 provider and finalizes the order:
 
 | PaymentIntent status                       | Action                                             |
@@ -200,6 +200,34 @@ provider and finalizes the order:
   stays the only authority on stock. (FR-15)
 
 It runs on its own queue so provider calls never delay capture jobs.
+
+### Closing an unfinished order on page load (FR-29)
+
+Waiting for the scheduled run leaves a buyer who reloaded the page mid-payment
+looking at "Processing…" for minutes. Reloading discards the card form and any 3DS
+window, so a request for the sale page is treated as the buyer giving up on a payment
+that has not been authorized yet.
+
+When `web` renders the sale page for a signed-in buyer it calls `POST /orders/abandon`.
+If the buyer has an `in_progress` order for that sale, `api` enqueues a
+`reconcile-order` job carrying that order's id on the reconciliation queue. The worker
+runs the same decision table as above for that one order, ignoring its age. The call
+returns once the job is enqueued — the page is not held while the provider is queried —
+and the buyer gets the outcome over Socket.IO.
+
+- An authorized payment (`requires_capture`) is **not** abandoned: the capture job is
+  enqueued and the order ends `confirmed` or `sold_out` as usual.
+- The trigger is the page request, never a socket reconnect — a reconnect also happens
+  on a network blip while the buyer is still inside 3DS.
+- Opening the sale in a second tab or on another device is indistinguishable from a
+  reload and cancels the payment in the first one. Accepted: no money is lost.
+
+**Why it is safe under concurrent access:** it adds no new transition. The job goes
+through the same `UPDATE ... WHERE status = in_progress` and competes with the
+scheduled run, the failure webhook and the capture job on the same terms — one of them
+transitions the order. The job names one order id, resolved when the page was
+requested, so an order the buyer creates afterwards is never touched; and while the
+old order is still `in_progress`, `api` does not create a new one for that buyer.
 
 ---
 

@@ -88,6 +88,11 @@ What the system does. Grouped by area.
   is finalized by the system itself: an abandoned checkout becomes **expired** and
   its reserved stock is released; a payment that was authorized but never reported
   back is processed as usual. Applies to the real payment provider (FR-12).
+- **FR-29 [Ext]** When a buyer opens the sale page while their order's payment has
+  not been authorized, the checkout is treated as abandoned: the order becomes
+  **expired** immediately and its reserved stock is released. A payment that is
+  already authorized is not affected and is processed as usual. Applies to the real
+  payment provider (FR-12).
 
 ### 2.5 Real-time updates
 
@@ -184,6 +189,6 @@ How the system must behave, regardless of feature.
   NFR-11.
 - **Extensions (only after core, dropped first if time is short, in this order):**
   email (FR-23–25), fraud screening (FR-20–22), semantic search (FR-26), real
-  payment in test mode (FR-12, FR-28).
+  payment in test mode (FR-12, FR-28, FR-29).
   A complete, working core satisfies the product's purpose on its own. Extensions
   add value but are never built at the expense of the core.
