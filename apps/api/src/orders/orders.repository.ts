@@ -37,6 +37,13 @@ export class OrdersRepository {
     });
   }
 
+  findInProgressOrder(buyerId: string, saleId: string): Promise<{ id: string } | null> {
+    return this.prisma.db.order.findFirst({
+      where: { buyerId, saleId, status: ORDER_STATUSES.IN_PROGRESS },
+      select: { id: true },
+    });
+  }
+
   countRetryableOrders(buyerId: string, saleId: string): Promise<number> {
     return this.prisma.db.order.count({
       where: { buyerId, saleId, status: { in: RETRYABLE_STATUSES } },

@@ -55,7 +55,10 @@ export class OrderReconciliationService {
 
   async reconcileOrderById(orderId: string): Promise<void> {
     const order = await this.ordersRepo.findInProgressOrderById(orderId);
-    if (!order) return;
+    if (!order) {
+      this.logger.log(`order ${orderId} is no longer in_progress — nothing to reconcile`);
+      return;
+    }
     await this.reconcileOrder(order);
   }
 
@@ -66,6 +69,7 @@ export class OrderReconciliationService {
     }
 
     const piStatus = await this.payment.retrievePIStatus(order.paymentRef);
+    this.logger.log(`order ${order.id}: PI ${order.paymentRef} is ${piStatus}`);
 
     switch (piStatus) {
       case PAYMENT_INTENT_STATUSES.REQUIRES_CAPTURE:

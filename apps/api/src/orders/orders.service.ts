@@ -1,10 +1,15 @@
+import { InjectQueue } from "@nestjs/bullmq";
 import { ConflictException, Injectable, Logger } from "@nestjs/common";
 import { context, propagation } from "@opentelemetry/api";
+import { Queue } from "bullmq";
 import Stripe from "stripe";
 import {
+  ORDER_RECONCILIATION_QUEUE,
   ORDER_STATUSES,
+  RECONCILE_ORDER_JOB,
   SALE_STATES,
   type OrderResultUpdatedPayload,
+  type ReconcileOrderJobPayload,
   type Sale,
 } from "@flash-sale/shared";
 
@@ -13,6 +18,7 @@ import { UsersService } from "../users/users.service.js";
 import { OrderResultPublisher } from "./order-result.publisher.js";
 import { OrdersRepository } from "./orders.repository.js";
 import { StockService } from "../stock/stock.service.js";
+import type { AbandonCheckoutDto } from "./dto/abandon-checkout.dto.js";
 import type { CreateOrderDto } from "./dto/create-order.dto.js";
 
 /** P2002 = unique constraint violation in Prisma. */
@@ -23,6 +29,7 @@ function isPrismaUniqueError(e: unknown): boolean {
 }
 
 export type BuyResult = { status: string; idempotencyKey: string; clientSecret?: string };
+export type AbandonCheckoutResult = { enqueued: boolean };
 
 @Injectable()
 export class OrdersService {
@@ -35,6 +42,8 @@ export class OrdersService {
     private readonly salesService: SalesService,
     private readonly ordersRepository: OrdersRepository,
     private readonly usersService: UsersService,
+    @InjectQueue(ORDER_RECONCILIATION_QUEUE)
+    private readonly reconciliationQueue: Queue<ReconcileOrderJobPayload>,
   ) {}
 
   async buy(dto: CreateOrderDto): Promise<BuyResult> {
@@ -52,6 +61,39 @@ export class OrdersService {
 
     const idempotencyKey = await this.buildIdempotencyKey(dto.buyerId, dto.saleId);
     return this.executeStripeOrder(dto, idempotencyKey, sale.priceCents);
+  }
+
+  /**
+   * FR-29: the buyer requested the sale page again, so an unauthorized payment is
+   * treated as abandoned. This only hands the order to the worker's reconciliation —
+   * the provider call and every state change happen there, off the request path.
+   *
+   * Concurrency (concurrency.md): no state is changed here. The job names one order id;
+   * the worker transitions it with WHERE status = in_progress like every other party,
+   * and an order created after this lookup has a different id.
+   */
+  async abandonCheckout(dto: AbandonCheckoutDto): Promise<AbandonCheckoutResult> {
+    const order = await this.ordersRepository.findInProgressOrder(dto.buyerId, dto.saleId);
+    if (!order) return { enqueued: false };
+
+    const carrier: Record<string, string> = {};
+    propagation.inject(context.active(), carrier);
+
+    await this.reconciliationQueue.add(
+      RECONCILE_ORDER_JOB,
+      { orderId: order.id, traceparent: carrier["traceparent"] },
+      {
+        // Repeated page requests collapse into one job while it is waiting or running.
+        jobId: order.id,
+        removeOnComplete: true,
+        // A retained failed job would make every later add() for this order a silent no-op.
+        removeOnFail: true,
+        attempts: 3,
+        backoff: { type: "exponential", delay: 1_000 },
+      },
+    );
+    this.logger.log(`enqueued on-demand reconciliation for order ${order.id}`);
+    return { enqueued: true };
   }
 
   getLatestFinalizedOrder(
