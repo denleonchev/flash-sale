@@ -7,6 +7,13 @@
   user's own order. (FR-17, FR-18)
 - Reconnects automatically if the connection drops. (FR-19, NFR-4)
 - Holds no authority: never decides stock, price, or permissions. (NFR-9)
+- Describes public pages to search engines: per-page metadata and canonical
+  address, `sitemap.xml`, `robots.txt`, and structured data (JSON-LD) on the sale
+  page. All of it is built from the same api responses the pages use. (FR-31,
+  FR-32, FR-33)
+- The sale address is `/sales/<slug>-<id>`. The slug is computed from the title and
+  is not stored; the ID alone identifies the sale, and any other form of the address
+  redirects to the current one. (FR-35)
 
 ## 3.2 api (Nest)
 

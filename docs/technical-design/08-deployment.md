@@ -23,3 +23,11 @@
   promotes the same tag to both: stage deploys automatically on push to
   `main`, prod deploys after manual approval on the `production` GitHub
   Environment.
+- **Only prod is indexed by search engines.** web reads `SEO_INDEXING_ENABLED` at
+  run time; it is `true` only in the prod VM's `.env`. When it is not set, web adds
+  `X-Robots-Tag: noindex, nofollow` to every page response. That header is the
+  **only** difference between the environments: `sitemap.xml` and `robots.txt` are
+  the same on stage, so they can be checked there before prod. `robots.txt` does
+  not block stage on purpose: a crawler must be able to open a page to see
+  `noindex`, while `Disallow` alone does not keep a linked address out of the
+  index. (FR-34)

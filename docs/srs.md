@@ -132,6 +132,21 @@ What the system does. Grouped by area.
 - **FR-26 [Ext]** A buyer can search sales by meaning, not only exact words
   (semantic search). Search data is prepared in the background.
 
+### 2.9 Discoverability _(Ext)_
+
+- **FR-31 [Ext]** Every public page has its own title, description and canonical
+  address. Internal search results and admin pages are marked as not for indexing.
+- **FR-32 [Ext]** The site publishes a sitemap of its public pages and rules for
+  crawlers that keep them out of the admin, API and sign-in areas.
+- **FR-33 [Ext]** A sale page carries a machine-readable description of the product
+  and the offer: price, availability and how long the price is valid.
+- **FR-34 [Ext]** Only the production environment may be indexed. Every other
+  environment tells search engines not to index it. Indexing is **off unless it is
+  switched on** explicitly.
+- **FR-35 [Ext]** The address of a sale page contains the readable sale title. The
+  sale is still identified by its ID, so old addresses keep working and redirect to
+  the current one.
+
 ---
 
 ## 3. Non-Functional Requirements
@@ -195,6 +210,6 @@ How the system must behave, regardless of feature.
   NFR-11.
 - **Extensions (only after core, dropped first if time is short, in this order):**
   email (FR-23–25), fraud screening (FR-20–22), semantic search (FR-26), real
-  payment in test mode (FR-12, FR-28, FR-29, FR-30).
+  payment in test mode (FR-12, FR-28, FR-29, FR-30), discoverability (FR-31–35).
   A complete, working core satisfies the product's purpose on its own. Extensions
   add value but are never built at the expense of the core.

@@ -32,6 +32,8 @@ in a clear order, and show everyone the live stock in real time.
   never slows a purchase.
 - **Notifications** — one email per order result, sent in the background and retried
   if it fails.
+- **Discoverability** — public pages can be found through search engines: each sale
+  page describes itself to crawlers, and only the production site is indexed.
 
 ## 4. Non-Goals
 
