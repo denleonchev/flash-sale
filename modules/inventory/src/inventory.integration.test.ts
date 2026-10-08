@@ -93,6 +93,14 @@ describe("InventoryService", () => {
       expect(await readCounter(saleId)).toBeNull();
     });
 
+    it("throws when the counter is missing and no counts loader was given", async () => {
+      const releaseOnlyInventory = new InventoryService(redis);
+
+      await expect(releaseOnlyInventory.reserveStock(randomUUID(), 1)).rejects.toThrow(
+        "loadStockCounts",
+      );
+    });
+
     it("lets exactly as many concurrent buyers through as there are units", async () => {
       const saleId = createSale({ stockTotal: 5, sold: 0, reserved: 0 });
       await inventory.reserveStock(saleId, 1);

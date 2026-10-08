@@ -23,6 +23,7 @@ RUN pnpm install --frozen-lockfile --filter @flash-sale/worker...
 COPY packages/shared packages/shared
 COPY packages/telemetry packages/telemetry
 COPY packages/telemetry-gcp packages/telemetry-gcp
+COPY modules/inventory modules/inventory
 COPY apps/worker apps/worker
 RUN pnpm --filter @flash-sale/worker build
 # --ignore-scripts: prisma client is already generated above; skipping postinstall

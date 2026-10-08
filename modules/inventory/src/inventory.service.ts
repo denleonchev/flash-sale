@@ -18,7 +18,8 @@ export type LoadStockCounts = (saleId: string) => Promise<StockCounts | null>;
 export class InventoryService {
   constructor(
     private readonly redis: Redis,
-    private readonly loadStockCounts: LoadStockCounts,
+    // Needed only to reserve: a host that just releases stock may omit it.
+    private readonly loadStockCounts?: LoadStockCounts,
   ) {}
 
   /**
@@ -46,6 +47,9 @@ export class InventoryService {
   }
 
   private async seedStockCounter(saleId: string): Promise<void> {
+    if (!this.loadStockCounts) {
+      throw new Error("InventoryService cannot reserve stock without loadStockCounts");
+    }
     const counts = await this.loadStockCounts(saleId);
     if (!counts) return;
     // FR-30: subtract reserved too, or a rebuilt counter hands held units out again.

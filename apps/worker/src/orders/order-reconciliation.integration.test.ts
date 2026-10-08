@@ -8,6 +8,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { OrderStatus } from "@flash-sale/db/client";
 import { ORDER_QUEUE, getStockKey } from "@flash-sale/shared";
 import { DbModule } from "../db/db.module.js";
+import { InventoryModule } from "../inventory/inventory.module.js";
 import { PrismaService } from "../db/prisma.service.js";
 import {
   PAYMENT_INTENT_STATUSES,
@@ -19,7 +20,6 @@ import { OrderResultPublisher } from "../realtime/order-result.publisher.js";
 import { createRedisConnection } from "../redis/redis.connection.js";
 import { OrderReconciliationService } from "./order-reconciliation.service.js";
 import { OrdersRepository } from "./orders.repository.js";
-import { StockReleaseService } from "./stock-release.service.js";
 
 /**
  * Runs against a real Postgres and Redis: the guarantees under test (guarded UPDATE,
@@ -126,13 +126,9 @@ describe("OrderReconciliationService", () => {
         BullModule.forRoot({ connection: queueConnection, prefix: TEST_QUEUE_PREFIX }),
         BullModule.registerQueue({ name: ORDER_QUEUE }),
         PaymentModule,
+        InventoryModule,
       ],
-      providers: [
-        OrderReconciliationService,
-        OrdersRepository,
-        StockReleaseService,
-        OrderResultPublisher,
-      ],
+      providers: [OrderReconciliationService, OrdersRepository, OrderResultPublisher],
     })
       .overrideProvider(PaymentGateway)
       .useValue(paymentGateway)

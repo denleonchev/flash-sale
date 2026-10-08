@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@flash-sale/db": "workspace:^",
+    "@flash-sale/inventory": "workspace:*",
     "@flash-sale/shared": "workspace:*",
     "@flash-sale/telemetry": "workspace:*",
     "@flash-sale/telemetry-gcp": "workspace:*",

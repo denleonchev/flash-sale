@@ -7,11 +7,11 @@ import { OrderReconciliationProcessor } from "./order-reconciliation.processor.j
 import { OrderReconciliationScheduler } from "./order-reconciliation.scheduler.js";
 import { OrderReconciliationService } from "./order-reconciliation.service.js";
 import { OrdersRepository } from "./orders.repository.js";
-import { StockReleaseService } from "./stock-release.service.js";
 import { StockPublisher } from "../realtime/stock.publisher.js";
 import { OrderResultPublisher } from "../realtime/order-result.publisher.js";
 import { PaymentModule } from "../payment/payment.module.js";
 import { FraudModule } from "../fraud/fraud.module.js";
+import { InventoryModule } from "../inventory/inventory.module.js";
 
 /**
  * Orders feature (consumer). `registerQueue` plus the processor/finalizer providers
@@ -23,6 +23,7 @@ import { FraudModule } from "../fraud/fraud.module.js";
     BullModule.registerQueue({ name: ORDER_QUEUE }, { name: ORDER_RECONCILIATION_QUEUE }),
     PaymentModule,
     FraudModule,
+    InventoryModule,
   ],
   providers: [
     CaptureOrderProcessor,
@@ -31,7 +32,6 @@ import { FraudModule } from "../fraud/fraud.module.js";
     OrderReconciliationScheduler,
     OrderReconciliationService,
     OrdersRepository,
-    StockReleaseService,
     StockPublisher,
     OrderResultPublisher,
   ],

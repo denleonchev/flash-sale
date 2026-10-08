@@ -9,12 +9,12 @@ import {
   ORDER_QUEUE,
   type CaptureOrderJobPayload,
 } from "@flash-sale/shared";
+import { InventoryService } from "@flash-sale/inventory";
 import {
   OrdersRepository,
   type ReconciledOrderStatus,
   type InProgressOrder,
 } from "./orders.repository.js";
-import { StockReleaseService } from "./stock-release.service.js";
 import { OrderResultPublisher } from "../realtime/order-result.publisher.js";
 import { PAYMENT_INTENT_STATUSES, PaymentGateway } from "../payment/payment.gateway.js";
 
@@ -34,7 +34,7 @@ export class OrderReconciliationService {
 
   constructor(
     private readonly ordersRepo: OrdersRepository,
-    private readonly stockReleaseService: StockReleaseService,
+    private readonly inventory: InventoryService,
     private readonly orderResultPublisher: OrderResultPublisher,
     @Inject(PaymentGateway) private readonly payment: PaymentGateway,
     @InjectQueue(ORDER_QUEUE) private readonly captureQueue: Queue<CaptureOrderJobPayload>,
@@ -110,7 +110,7 @@ export class OrderReconciliationService {
       return;
     }
 
-    await this.stockReleaseService.releaseStock(order.saleId, 1);
+    await this.inventory.releaseStock(order.saleId, 1);
 
     if (paymentIntentIdToCancel) {
       try {

@@ -1,8 +1,8 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { OrderStatus } from "@flash-sale/db/client";
 import { ORDER_STATUSES, type CaptureOrderJobPayload } from "@flash-sale/shared";
+import { InventoryService } from "@flash-sale/inventory";
 import { OrdersRepository } from "./orders.repository.js";
-import { StockReleaseService } from "./stock-release.service.js";
 import { StockPublisher } from "../realtime/stock.publisher.js";
 import { OrderResultPublisher } from "../realtime/order-result.publisher.js";
 import { PaymentGateway } from "../payment/payment.gateway.js";
@@ -42,7 +42,7 @@ export class CaptureOrderFinalizer {
     private readonly ordersRepo: OrdersRepository,
     private readonly stockPublisher: StockPublisher,
     private readonly orderResultPublisher: OrderResultPublisher,
-    private readonly stockReleaseService: StockReleaseService,
+    private readonly inventory: InventoryService,
     @Inject(PaymentGateway) private readonly payment: PaymentGateway,
     private readonly fraudProducer: FraudScreeningProducer,
   ) {}
@@ -56,7 +56,7 @@ export class CaptureOrderFinalizer {
         await this.payment.capturePI(job.paymentIntentId, job.idempotencyKey);
       } else {
         // quantity is always 1 — the system does not support multi-unit orders.
-        await this.stockReleaseService.releaseStock(job.saleId, 1);
+        await this.inventory.releaseStock(job.saleId, 1);
         // Fire-and-forget: PI expires in 7 days if cancel fails; buyer notified sold_out now.
         void this.payment.cancelPI(job.paymentIntentId);
       }
