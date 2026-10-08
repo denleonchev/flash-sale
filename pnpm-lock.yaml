@@ -38,6 +38,9 @@ importers:
       '@flash-sale/db':
         specifier: workspace:^
         version: link:../../packages/db
+      '@flash-sale/inventory':
+        specifier: workspace:*
+        version: link:../../modules/inventory
       '@flash-sale/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -217,6 +220,9 @@ importers:
       '@flash-sale/db':
         specifier: workspace:^
         version: link:../../packages/db
+      '@flash-sale/inventory':
+        specifier: workspace:*
+        version: link:../../modules/inventory
       '@flash-sale/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -299,6 +305,19 @@ importers:
       unplugin-swc:
         specifier: ^2.0.0
         version: 2.0.0(@swc/core@1.16.13)(esbuild@0.28.1)(rolldown@1.0.3)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))
+      vitest:
+        specifier: ^4.1.9
+        version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@25.9.3)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))
+
+  modules/inventory:
+    dependencies:
+      ioredis:
+        specifier: 5.10.1
+        version: 5.10.1
+    devDependencies:
+      '@types/node':
+        specifier: ^25.9.3
+        version: 25.9.3
       vitest:
         specifier: ^4.1.9
         version: 4.1.9(@opentelemetry/api@1.9.1)(@types/node@25.9.3)(vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0))
@@ -8330,7 +8349,7 @@ snapshots:
   vite@8.0.16(@types/node@25.9.3)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.22.4)(yaml@2.9.0):
     dependencies:
       lightningcss: 1.32.0
-      picomatch: 4.0.4
+      picomatch: 4.0.7
       postcss: 8.5.16
       rolldown: 1.0.3
       tinyglobby: 0.2.17
