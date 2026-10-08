@@ -4,6 +4,11 @@
 - Shared types (queue jobs, DTOs, enums, order/event shapes) live in
   `packages/shared` and are imported by both `api` and `worker`. Do not duplicate
   these types per app.
+- Logic that both `api` and `worker` need lives in a domain module under `packages/`
+  (`docs/technical-design/02-repository-structure.md`), not copied into each app:
+  - plain classes, dependencies through the constructor, no Nest decorators;
+  - apps import a module only through its package entry point;
+  - a module's tables and Redis keys are touched only by that module.
 - Small, focused commits with clear messages. One concern per change.
 - Reference requirement IDs (FR-/NFR-) in comments where a piece of code exists to
   satisfy a specific requirement.

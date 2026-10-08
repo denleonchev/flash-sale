@@ -25,3 +25,17 @@
 - Publishes the result to Redis pub/sub so the `api` can push it to the buyer.
 - Hosts background-only jobs: fraud screening, email, sale embeddings. (FR-20,
   FR-23, FR-26, NFR-13, NFR-14)
+
+## 3.4 Domain modules
+
+Shared by `api` and `worker`. Extracted one at a time; until a module exists, its
+logic still lives in the hosts.
+
+| Module      | Public interface                                                                     | Owns                                          |
+| ----------- | ------------------------------------------------------------------------------------ | --------------------------------------------- |
+| `inventory` | reserve, release, read available stock                                               | the Redis stock counter, its scripts, reseed  |
+| `payments`  | create, read status, capture, cancel a payment; verify a webhook signature           | the payment provider client                   |
+| `orders`    | create an order, move it out of `in_progress`, find a buyer's order, list stale ones | the `orders` table and the order result event |
+
+Catalog (sales) and fraud screening stay in their hosts: each runs in one process
+only, so there is nothing to share.
