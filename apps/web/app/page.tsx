@@ -1,7 +1,12 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 import { getSession } from "@/lib/session";
 import { DemoLoginButton } from "./demo-login-button";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 const REPO_URL = "https://github.com/denleonchev/flash-sale";
 

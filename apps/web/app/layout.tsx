@@ -1,14 +1,22 @@
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { SiteHeader } from "./site-header";
 import { RoleSwitcher } from "./role-switcher";
 import { ClientErrorListeners } from "./client-error-listeners";
 import { getSession } from "@/lib/session";
+import { getSiteUrl } from "@/lib/seo/get-site-url";
+import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/seo/site";
 import "./globals.css";
 
-export const metadata = {
-  title: "Flash-Sale",
-  description: "Flash-sale platform — web frontend",
-};
+export function generateMetadata(): Metadata {
+  return {
+    metadataBase: getSiteUrl(),
+    title: { default: SITE_NAME, template: `%s | ${SITE_NAME}` },
+    description: SITE_DESCRIPTION,
+    openGraph: { type: "website", siteName: SITE_NAME },
+    twitter: { card: "summary" },
+  };
+}
 
 async function RoleSwitcherWrapper() {
   const session = await getSession();

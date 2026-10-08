@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Plus } from "lucide-react";
 import { getSession } from "@/lib/session";
@@ -5,6 +6,25 @@ import { getSales } from "./get-sales";
 import { getSalesSearch } from "@/lib/get-sales-search";
 import { SaleSearchForm } from "./sale-search-form";
 import { Badge } from "@/components/ui/badge";
+
+const CATALOG_DESCRIPTION =
+  "All flash sales: live now, starting soon and ended. See the price, the stock left and the time left for each one.";
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}): Promise<Metadata> {
+  const { q } = await searchParams;
+  const isSearch = Boolean(q?.trim());
+
+  return {
+    title: "Sales",
+    description: CATALOG_DESCRIPTION,
+    alternates: { canonical: "/sales" },
+    ...(isSearch && { robots: { index: false, follow: true } }),
+  };
+}
 
 /**
  * Catalog page — S-1.2 (UR-1). SSR: fetch all sales server-side, render list with

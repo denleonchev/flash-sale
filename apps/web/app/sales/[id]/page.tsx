@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { notFound } from "next/navigation";
@@ -7,6 +8,28 @@ import { EndNowButton } from "./end-now-button";
 import { getSale } from "./get-sale";
 import { LiveStock } from "./live-stock";
 import { Badge } from "@/components/ui/badge";
+import { buildSaleDescription } from "@/lib/seo/build-sale-description";
+import { SITE_NAME } from "@/lib/seo/site";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const sale = await getSale(id);
+  if (!sale) return {};
+
+  const description = buildSaleDescription(sale);
+  const path = `/sales/${sale.id}`;
+
+  return {
+    title: sale.title,
+    description,
+    alternates: { canonical: path },
+    openGraph: { type: "website", siteName: SITE_NAME, title: sale.title, description, url: path },
+  };
+}
 
 /**
  * Event (sale) view — S-1.1 (FR-5). SSR server component: fetch the sale on the
