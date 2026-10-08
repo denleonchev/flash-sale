@@ -10,9 +10,9 @@ import {
   ORDER_STATUSES,
   type CaptureOrderJobPayload,
 } from "@flash-sale/shared";
+import { InventoryService } from "@flash-sale/inventory";
 import { OrdersRepository } from "../orders/orders.repository.js";
 import { OrderResultPublisher } from "../orders/order-result.publisher.js";
-import { StockService } from "../stock/stock.service.js";
 
 /**
  * Handles Stripe webhook events for the authorize/capture flow (FR-12).
@@ -46,7 +46,7 @@ export class StripeWebhookService {
   constructor(
     private readonly ordersRepo: OrdersRepository,
     private readonly orderResultPublisher: OrderResultPublisher,
-    private readonly stockService: StockService,
+    private readonly inventory: InventoryService,
     @InjectQueue(ORDER_QUEUE) private readonly captureQueue: Queue<CaptureOrderJobPayload>,
   ) {
     this.stripe = new Stripe(process.env["STRIPE_SECRET_KEY"]!);
@@ -124,7 +124,7 @@ export class StripeWebhookService {
     const { transitioned } = await this.ordersRepo.failFromWebhook(order.id);
     if (transitioned) {
       // quantity is always 1 — the system does not support multi-unit orders.
-      await this.stockService.releaseStock(order.saleId, 1);
+      await this.inventory.releaseStock(order.saleId, 1);
     }
 
     await this.orderResultPublisher.publishOrderResult({

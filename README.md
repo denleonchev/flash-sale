@@ -23,7 +23,7 @@ Three layers, each for a different reason:
 **1. Atomic Redis reservation** — on "Buy", a Lua script checks and decrements stock in one atomic step. Redis is single-threaded, so two buyers cannot both win the last unit.
 
 ```lua
--- stock.repository.ts
+-- modules/inventory/src/stock-counter.ts
 if redis.call('EXISTS', KEYS[1]) == 0 then return -1 end
 local stock = tonumber(redis.call('GET', KEYS[1]))
 if not stock or stock < tonumber(ARGV[1]) then return 0 end

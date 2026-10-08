@@ -9,6 +9,7 @@ COPY pnpm-workspace.yaml pnpm-lock.yaml package.json tsconfig.base.json ./
 COPY packages/shared/package.json packages/shared/
 COPY packages/telemetry/package.json packages/telemetry/
 COPY packages/telemetry-gcp/package.json packages/telemetry-gcp/
+COPY modules/inventory/package.json modules/inventory/
 # Full db copy needed: postinstall runs `prisma generate && tsc` during pnpm install.
 COPY packages/db packages/db
 COPY apps/api/package.json apps/api/
@@ -22,6 +23,7 @@ RUN pnpm install --frozen-lockfile --filter @flash-sale/api...
 COPY packages/shared packages/shared
 COPY packages/telemetry packages/telemetry
 COPY packages/telemetry-gcp packages/telemetry-gcp
+COPY modules/inventory modules/inventory
 COPY apps/api apps/api
 RUN pnpm --filter @flash-sale/api build
 # --ignore-scripts: prisma client is already generated above; skipping postinstall

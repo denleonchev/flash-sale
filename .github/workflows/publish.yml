@@ -93,7 +93,8 @@ jobs:
             caddy:
               - 'apps/caddy/**'
             concurrency:
-              - 'apps/api/src/stock/**'
+              - 'apps/api/src/inventory/**'
+              - 'modules/inventory/**'
               - 'apps/api/src/orders/**'
               - 'apps/worker/src/orders/**'
               - 'packages/db/prisma/schema.prisma'
@@ -104,7 +105,8 @@ jobs:
               - 'apps/api/src/sales/**'
               - 'apps/api/src/realtime/**'
               - 'apps/api/src/stripe-webhook/**'
-              - 'apps/api/src/stock/**'
+              - 'apps/api/src/inventory/**'
+              - 'modules/inventory/**'
               - 'apps/worker/src/orders/**'
               - 'apps/worker/src/realtime/**'
               - 'packages/shared/**'

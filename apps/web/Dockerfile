@@ -9,6 +9,7 @@ COPY pnpm-workspace.yaml pnpm-lock.yaml package.json tsconfig.base.json ./
 COPY packages/shared/package.json packages/shared/
 COPY packages/telemetry/package.json packages/telemetry/
 COPY packages/telemetry-gcp/package.json packages/telemetry-gcp/
+COPY modules/inventory/package.json modules/inventory/
 # Full db copy needed: postinstall runs `prisma generate && tsc` during pnpm install.
 COPY packages/db packages/db
 COPY apps/api/package.json apps/api/

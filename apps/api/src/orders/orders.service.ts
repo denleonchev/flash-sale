@@ -12,12 +12,12 @@ import {
   type ReconcileOrderJobPayload,
   type Sale,
 } from "@flash-sale/shared";
+import { InventoryService } from "@flash-sale/inventory";
 
 import { SalesService } from "../sales/sales.service.js";
 import { UsersService } from "../users/users.service.js";
 import { OrderResultPublisher } from "./order-result.publisher.js";
 import { OrdersRepository } from "./orders.repository.js";
-import { StockService } from "../stock/stock.service.js";
 import type { AbandonCheckoutDto } from "./dto/abandon-checkout.dto.js";
 import type { CreateOrderDto } from "./dto/create-order.dto.js";
 
@@ -38,7 +38,7 @@ export class OrdersService {
 
   constructor(
     private readonly orderResultPublisher: OrderResultPublisher,
-    private readonly stockService: StockService,
+    private readonly inventory: InventoryService,
     private readonly salesService: SalesService,
     private readonly ordersRepository: OrdersRepository,
     private readonly usersService: UsersService,
@@ -154,7 +154,7 @@ export class OrdersService {
     idempotencyKey: string,
     priceCents: number,
   ): Promise<BuyResult> {
-    const reserved = await this.stockService.reserveStock(dto.saleId, dto.quantity);
+    const reserved = await this.inventory.reserveStock(dto.saleId, dto.quantity);
     if (!reserved) {
       throw new ConflictException(
         "All units are being checked out right now. Try again in a moment.",
@@ -177,7 +177,7 @@ export class OrdersService {
         }),
       });
     } catch (err) {
-      await this.stockService.releaseStock(dto.saleId, dto.quantity);
+      await this.inventory.releaseStock(dto.saleId, dto.quantity);
       throw err;
     }
 
@@ -193,7 +193,7 @@ export class OrdersService {
     } catch (e) {
       // P2002: double-click — cancel the PI we just created and release reservation.
       await this.stripe.paymentIntents.cancel(pi.id).catch(() => undefined);
-      await this.stockService.releaseStock(dto.saleId, dto.quantity);
+      await this.inventory.releaseStock(dto.saleId, dto.quantity);
       if (isPrismaUniqueError(e)) return { status: "accepted", idempotencyKey };
       throw e;
     }
