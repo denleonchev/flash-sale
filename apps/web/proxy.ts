@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { auth0 } from "@/lib/auth0";
+import { isIndexingEnabled } from "@/lib/seo/is-indexing-enabled";
 
 /**
  * Mounts the Auth0 auth routes (/auth/login, /auth/logout, /auth/callback) and
@@ -8,7 +9,11 @@ import { auth0 } from "@/lib/auth0";
  * keeps its name.
  */
 export async function proxy(request: NextRequest): Promise<Response> {
-  return auth0.middleware(request);
+  const response = await auth0.middleware(request);
+  if (!isIndexingEnabled()) {
+    response.headers.set("X-Robots-Tag", "noindex, nofollow");
+  }
+  return response;
 }
 
 export const config = {
