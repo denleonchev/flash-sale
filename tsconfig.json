@@ -11,6 +11,9 @@
       "path": "packages/shared"
     },
     {
+      "path": "modules/inventory"
+    },
+    {
       "path": "apps/api"
     },
     {

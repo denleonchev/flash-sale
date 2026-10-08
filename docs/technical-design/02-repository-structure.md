@@ -11,14 +11,15 @@ flash-sale/
 │  ├─ web/              Next.js frontend
 │  ├─ api/              Nest — HTTP API + Socket.IO gateway
 │  └─ worker/           Nest — queue processors / background jobs
-└─ packages/
-   ├─ shared/           contracts: DTOs, queue job/event shapes, enums
-   ├─ db/               Prisma schema, migrations, generated client
-   ├─ telemetry/        tracing and logging setup
-   ├─ telemetry-gcp/    GCP exporters
-   ├─ inventory/        domain module — stock            (planned)
-   ├─ payments/         domain module — payment provider (planned)
-   └─ orders/           domain module — orders           (planned)
+├─ packages/            shared infrastructure
+│  ├─ shared/           contracts: DTOs, queue job/event shapes, enums
+│  ├─ db/               Prisma schema, migrations, generated client
+│  ├─ telemetry/        tracing and logging setup
+│  └─ telemetry-gcp/    GCP exporters
+└─ modules/             domain modules
+   ├─ inventory/        stock
+   ├─ payments/         payment provider (planned)
+   └─ orders/           orders           (planned)
 ```
 
 `packages/shared` holds the **contract** between `api` and `worker` — the queue job
@@ -29,6 +30,6 @@ separate repositories.
 ## Hosts and domain modules
 
 `api` and `worker` are two processes over one database and one Redis. Business logic
-that both need lives in a **domain module** — a package with one public entry point —
-so each rule exists once. What each module owns is listed in
+that both need lives in a **domain module** — a package under `modules/` with one
+public entry point — so each rule exists once. What each module owns is listed in
 [§3.4](03-components.md).

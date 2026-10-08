@@ -33,7 +33,7 @@ logic still lives in the hosts.
 
 | Module      | Public interface                                                                     | Owns                                          |
 | ----------- | ------------------------------------------------------------------------------------ | --------------------------------------------- |
-| `inventory` | reserve, release, read available stock                                               | the Redis stock counter, its scripts, reseed  |
+| `inventory` | reserve, release                                                                     | the Redis stock counter, its scripts, reseed  |
 | `payments`  | create, read status, capture, cancel a payment; verify a webhook signature           | the payment provider client                   |
 | `orders`    | create an order, move it out of `in_progress`, find a buyer's order, list stale ones | the `orders` table and the order result event |
 

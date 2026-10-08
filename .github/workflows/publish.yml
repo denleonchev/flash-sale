@@ -52,6 +52,7 @@ jobs:
       - run: pnpm lint
       - run: pnpm build
       - run: pnpm -r test
+      - run: pnpm --filter @flash-sale/inventory test:integration
       - run: pnpm --filter @flash-sale/db migrate:deploy
       - run: pnpm --filter @flash-sale/worker test:integration
 
@@ -74,16 +75,19 @@ jobs:
             api:
               - 'apps/api/**'
               - 'packages/**'
+              - 'modules/**'
               - 'pnpm-lock.yaml'
               - 'tsconfig.base.json'
             web:
               - 'apps/web/**'
               - 'packages/**'
+              - 'modules/**'
               - 'pnpm-lock.yaml'
               - 'tsconfig.base.json'
             worker:
               - 'apps/worker/**'
               - 'packages/**'
+              - 'modules/**'
               - 'pnpm-lock.yaml'
               - 'tsconfig.base.json'
             caddy:
