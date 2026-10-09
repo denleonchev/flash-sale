@@ -8,7 +8,9 @@ import { EndNowButton } from "./end-now-button";
 import { getSale } from "./get-sale";
 import { LiveStock } from "./live-stock";
 import { Badge } from "@/components/ui/badge";
+import { JsonLd } from "@/components/json-ld";
 import { buildSaleDescription } from "@/lib/seo/build-sale-description";
+import { buildSaleJsonLd } from "@/lib/seo/build-sale-json-ld";
 import { SITE_NAME } from "@/lib/seo/site";
 
 export async function generateMetadata({
@@ -54,6 +56,7 @@ export default async function SalePage({ params }: { params: Promise<{ id: strin
 
   return (
     <main className="max-w-2xl mx-auto py-10">
+      <JsonLd data={buildSaleJsonLd(sale)} />
       <Link
         href="/sales"
         className="inline-flex items-center gap-1.5 text-zinc-500 hover:text-zinc-300 text-lg sm:text-sm mb-8 transition-colors"

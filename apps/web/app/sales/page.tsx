@@ -6,6 +6,8 @@ import { getSales } from "./get-sales";
 import { getSalesSearch } from "@/lib/get-sales-search";
 import { SaleSearchForm } from "./sale-search-form";
 import { Badge } from "@/components/ui/badge";
+import { JsonLd } from "@/components/json-ld";
+import { buildSaleListJsonLd } from "@/lib/seo/build-sale-json-ld";
 
 const CATALOG_DESCRIPTION =
   "All flash sales: live now, starting soon and ended. See the price, the stock left and the time left for each one.";
@@ -47,6 +49,8 @@ export default async function CatalogPage({
 
   return (
     <main className="py-10">
+      {/* Search result pages are not indexed (see generateMetadata), so they get no markup. */}
+      {!query && sales.length > 0 && <JsonLd data={buildSaleListJsonLd(sales)} />}
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-3xl font-bold text-zinc-50">Sales</h1>
         {isAdmin && (
