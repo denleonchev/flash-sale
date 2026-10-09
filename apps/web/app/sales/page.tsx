@@ -8,6 +8,7 @@ import { SaleSearchForm } from "./sale-search-form";
 import { Badge } from "@/components/ui/badge";
 import { JsonLd } from "@/components/json-ld";
 import { buildSaleListJsonLd } from "@/lib/seo/build-sale-json-ld";
+import { buildSalePath } from "@/lib/seo/build-sale-path";
 
 const CATALOG_DESCRIPTION =
   "All flash sales: live now, starting soon and ended. See the price, the stock left and the time left for each one.";
@@ -75,7 +76,7 @@ export default async function CatalogPage({
       ) : (
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {sales.map((sale) => (
-            <Link key={sale.id} href={`/sales/${sale.id}`} className="block group">
+            <Link key={sale.id} href={buildSalePath(sale)} className="block group">
               <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-5 hover:border-zinc-700 hover:bg-zinc-800/40 transition-all">
                 <div className="flex items-center justify-between mb-3">
                   <SaleBadge state={sale.state} />

@@ -1,4 +1,5 @@
 import { SALE_STATES, type Sale } from "@flash-sale/shared";
+import { buildSalePath } from "./build-sale-path";
 import { getSiteUrl } from "./get-site-url";
 
 const AVAILABILITY = {
@@ -24,7 +25,7 @@ function resolveAvailability(sale: Sale): Availability {
 
 // FR-33
 export function buildSaleJsonLd(sale: Sale): JsonLd {
-  const url = new URL(`/sales/${sale.id}`, getSiteUrl()).toString();
+  const url = new URL(buildSalePath(sale), getSiteUrl()).toString();
 
   return {
     "@context": "https://schema.org",
@@ -56,7 +57,7 @@ export function buildSaleListJsonLd(sales: Sale[]): JsonLd {
       "@type": "ListItem",
       position: index + 1,
       name: sale.title,
-      url: new URL(`/sales/${sale.id}`, siteUrl).toString(),
+      url: new URL(buildSalePath(sale), siteUrl).toString(),
     })),
   };
 }

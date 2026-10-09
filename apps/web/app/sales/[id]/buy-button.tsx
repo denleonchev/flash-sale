@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { usePathname } from "next/navigation";
 import { loadStripe, type Stripe } from "@stripe/stripe-js";
 import { CardElement, Elements, useElements, useStripe } from "@stripe/react-stripe-js";
 import { buyAction, type BuyState } from "./actions";
@@ -31,6 +32,7 @@ type Props = {
  */
 export function BuyButton({ saleId, signedIn, orderStatus, ready }: Props) {
   const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null);
+  const pathname = usePathname();
 
   useEffect(() => {
     const key = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
@@ -41,7 +43,7 @@ export function BuyButton({ saleId, signedIn, orderStatus, ready }: Props) {
   if (!signedIn) {
     return (
       <a
-        href={`/auth/login?returnTo=/sales/${saleId}`}
+        href={`/auth/login?returnTo=${encodeURIComponent(pathname)}`}
         className="flex w-full items-center justify-center rounded-md bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-100 font-semibold py-3 transition-colors"
       >
         Sign in to buy

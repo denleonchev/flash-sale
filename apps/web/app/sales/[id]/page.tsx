@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { getSession } from "@/lib/session";
 import { Countdown } from "./countdown";
 import { EndNowButton } from "./end-now-button";
@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { JsonLd } from "@/components/json-ld";
 import { buildSaleDescription } from "@/lib/seo/build-sale-description";
 import { buildSaleJsonLd } from "@/lib/seo/build-sale-json-ld";
+import { buildSalePath, parseSaleIdFromParam } from "@/lib/seo/build-sale-path";
 import { SITE_NAME } from "@/lib/seo/site";
 
 export async function generateMetadata({
@@ -18,12 +19,13 @@ export async function generateMetadata({
 }: {
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
-  const { id } = await params;
-  const sale = await getSale(id);
+  const { id: param } = await params;
+  const saleId = parseSaleIdFromParam(param);
+  const sale = saleId ? await getSale(saleId) : null;
   if (!sale) return {};
 
   const description = buildSaleDescription(sale);
-  const path = `/sales/${sale.id}`;
+  const path = buildSalePath(sale);
 
   return {
     title: sale.title,
@@ -39,11 +41,23 @@ export async function generateMetadata({
  * updates arrive in later cards (S-4.1 / UR-3); here Buy is only enabled/disabled by
  * state.
  */
-export default async function SalePage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params;
-  const sale = await getSale(id);
+export default async function SalePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const { id: param } = await params;
+  const saleId = parseSaleIdFromParam(param);
+  const sale = saleId ? await getSale(saleId) : null;
   if (!sale) {
     notFound();
+  }
+
+  const salePath = buildSalePath(sale);
+  if (`/sales/${param}` !== salePath) {
+    permanentRedirect(`${salePath}${buildQueryString(await searchParams)}`);
   }
 
   const session = await getSession();
@@ -126,4 +140,15 @@ export default async function SalePage({ params }: { params: Promise<{ id: strin
       )}
     </main>
   );
+}
+
+function buildQueryString(searchParams: Record<string, string | string[] | undefined>): string {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(searchParams)) {
+    for (const item of [value].flat()) {
+      if (item !== undefined) query.append(key, item);
+    }
+  }
+  const text = query.toString();
+  return text ? `?${text}` : "";
 }

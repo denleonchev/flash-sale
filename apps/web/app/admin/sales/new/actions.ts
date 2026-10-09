@@ -5,6 +5,7 @@ import { apiFetch } from "@/lib/api";
 import { getSession } from "@/lib/session";
 import { mintAdminTicket } from "@/lib/admin-ticket";
 import { SaleSchema } from "@/lib/schemas/sale.schema";
+import { buildSalePath } from "@/lib/seo/build-sale-path";
 import type { CreateSale } from "@flash-sale/shared";
 
 export type CreateSaleState = { errorMessage?: string };
@@ -49,5 +50,5 @@ export async function createSaleAction(
 
   const sale = SaleSchema.parse(await res.json());
   revalidatePath("/sales");
-  redirect(`/sales/${sale.id}`);
+  redirect(buildSalePath(sale));
 }

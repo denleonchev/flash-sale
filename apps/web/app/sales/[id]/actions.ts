@@ -81,5 +81,5 @@ export async function endSaleAction(saleId: string, _formData: FormData): Promis
     headers: { "X-Admin-Ticket": mintAdminTicket() },
   });
   if (!res.ok) throw new Error(`Failed to end sale (${res.status})`);
-  revalidatePath(`/sales/${saleId}`);
+  revalidatePath("/sales/[id]", "page");
 }

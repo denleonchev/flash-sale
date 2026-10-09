@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { buildSalePath } from "@/lib/seo/build-sale-path";
 import { getSiteUrl } from "@/lib/seo/get-site-url";
 import { getSales } from "./sales/get-sales";
 
@@ -11,6 +12,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return [
     { url: new URL("/", siteUrl).toString() },
     { url: new URL("/sales", siteUrl).toString() },
-    ...sales.map((sale) => ({ url: new URL(`/sales/${sale.id}`, siteUrl).toString() })),
+    ...sales.map((sale) => ({ url: new URL(buildSalePath(sale), siteUrl).toString() })),
   ];
 }
