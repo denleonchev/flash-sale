@@ -4,7 +4,6 @@ import { SiteHeader } from "./site-header";
 import { RoleSwitcher } from "./role-switcher";
 import { ClientErrorListeners } from "./client-error-listeners";
 import { SessionProvider } from "./session-provider";
-import { getSession } from "@/lib/session";
 import { getSiteUrl } from "@/lib/seo/get-site-url";
 import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/seo/site";
 import "./globals.css";
@@ -19,13 +18,6 @@ export function generateMetadata(): Metadata {
   };
 }
 
-async function RoleSwitcherWrapper() {
-  const session = await getSession();
-  if (!session) return null;
-  const currentRole = session.isAdmin ? "admin" : session.hasRole("moderator") ? "moderator" : "";
-  return <RoleSwitcher currentRole={currentRole} />;
-}
-
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className="h-full">
@@ -33,7 +25,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <SessionProvider>
           <SiteHeader />
           <div className="w-full max-w-5xl mx-auto px-4 flex-1 flex flex-col">{children}</div>
-          <RoleSwitcherWrapper />
+          <RoleSwitcher />
         </SessionProvider>
         <ClientErrorListeners />
       </body>

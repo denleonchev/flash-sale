@@ -12,7 +12,13 @@ const ROLES = [
   { value: "admin", label: "Admin", hint: "Moderator + create and run sales" },
 ] as const;
 
-export function RoleSwitcher({ currentRole }: { currentRole: SwitchableRole }) {
+export function RoleSwitcher() {
+  const { session } = useSession();
+  if (!session) return null;
+  return <RoleSwitcherBar currentRole={session.role} />;
+}
+
+function RoleSwitcherBar({ currentRole }: { currentRole: SwitchableRole }) {
   // Bound to the prop, the select would snap back to the old role mid-switch.
   const [role, setRole] = useState<SwitchableRole>(currentRole);
   const [error, setError] = useState<string | null>(null);
