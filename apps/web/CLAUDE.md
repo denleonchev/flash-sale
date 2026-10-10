@@ -24,3 +24,7 @@ the drop page and, later, live stock and order status. The real UI starts in S-1
 - Shared types (event/order shapes) come from `@flash-sale/shared` for display —
   never redefine them here.
 - Read config from env only; in code use the variable names, not the values (NFR-8).
+- The root layout and the home page never read the session on the server (no
+  `getSession()` / `cookies()`): that would make the home page dynamic and
+  uncacheable. UI that depends on the visitor is a client component using
+  `useSession()` (`app/session-provider.tsx`). See §3.1, browser caching.

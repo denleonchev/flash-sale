@@ -14,6 +14,18 @@
 - The sale address is `/sales/<slug>-<id>`. The slug is computed from the title and
   is not stored; the ID alone identifies the sale, and any other form of the address
   redirects to the current one. (FR-35)
+- Browser caching follows how fast each response goes stale:
+  - Build assets (`/_next/static`) carry a content hash in the name and are cached
+    as immutable.
+  - The home page is prerendered and is the same for every visitor. It is sent with
+    `Cache-Control: no-cache`, so the browser keeps it and revalidates by `ETag`
+    (`304`, no body). It gets no `max-age`: a stored copy cannot be recalled after a
+    deploy, and it points at that build's assets and server actions.
+  - Everything that depends on the visitor (name, role, demo controls) is left out of
+    the shared layout and the home page HTML. The browser fetches it from `/api/me`,
+    which is `no-store`.
+  - Catalog and sale pages are not cached by the browser: state, stock and time left
+    change too quickly.
 
 ## 3.2 api (Nest)
 

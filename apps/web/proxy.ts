@@ -1,6 +1,9 @@
-import type { NextRequest } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { auth0 } from "@/lib/auth0";
 import { isIndexingEnabled } from "@/lib/seo/is-indexing-enabled";
+
+const HOME_PATH = "/";
+const HOME_CACHE_CONTROL = "no-cache";
 
 /**
  * Mounts the Auth0 auth routes (/auth/login, /auth/logout, /auth/callback) and
@@ -9,7 +12,11 @@ import { isIndexingEnabled } from "@/lib/seo/is-indexing-enabled";
  * keeps its name.
  */
 export async function proxy(request: NextRequest): Promise<Response> {
-  const response = await auth0.middleware(request);
+  const isHomeDocument = request.method === "GET" && request.nextUrl.pathname === HOME_PATH;
+  const response = isHomeDocument ? NextResponse.next() : await auth0.middleware(request);
+  if (isHomeDocument) {
+    response.headers.set("Cache-Control", HOME_CACHE_CONTROL);
+  }
   if (!isIndexingEnabled()) {
     response.headers.set("X-Robots-Tag", "noindex, nofollow");
   }
