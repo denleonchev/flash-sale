@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
-import { getSession } from "@/lib/session";
-import { DemoLoginButton } from "./demo-login-button";
+import { DemoLoginBlock } from "./demo-login-block";
 
 export const metadata: Metadata = {
   alternates: { canonical: "/" },
@@ -10,9 +9,7 @@ export const metadata: Metadata = {
 
 const REPO_URL = "https://github.com/denleonchev/flash-sale";
 
-export default async function HomePage() {
-  const session = await getSession();
-
+export default function HomePage() {
   return (
     <main className="flex-1 flex flex-col items-center justify-center pb-10 text-center">
       <div className="max-w-md">
@@ -30,15 +27,7 @@ export default async function HomePage() {
         >
           Browse sales
         </Link>
-        {!session && (
-          <div className="mt-8 pt-8 border-t border-zinc-800">
-            <DemoLoginButton />
-            <p className="mt-3 text-xs text-zinc-500">
-              No sign-up. Opens a ready-made buyer account so you can place an order — switch to
-              Moderator or Admin from the bar at the bottom.
-            </p>
-          </div>
-        )}
+        <DemoLoginBlock />
         <div className="mt-8">
           <a
             href={REPO_URL}
