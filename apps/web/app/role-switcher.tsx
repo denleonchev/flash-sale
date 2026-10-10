@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { usePathname } from "next/navigation";
 import { Spinner } from "@/components/ui/spinner";
 import { switchRoleAction, type SwitchableRole } from "./actions";
+import { useSession } from "./session-provider";
 
 const ROLES = [
   { value: "", label: "Buyer", hint: "buy items in a sale" },
@@ -17,6 +18,7 @@ export function RoleSwitcher({ currentRole }: { currentRole: SwitchableRole }) {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const pathname = usePathname();
+  const { refreshSession } = useSession();
 
   function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const picked = e.target.value as SwitchableRole;
@@ -28,7 +30,9 @@ export function RoleSwitcher({ currentRole }: { currentRole: SwitchableRole }) {
       if (result.error) {
         setRole(currentRole);
         setError(result.error);
+        return;
       }
+      await refreshSession();
     });
   }
 

@@ -1,11 +1,15 @@
+"use client";
+
 import Link from "next/link";
 import { Zap } from "lucide-react";
-import { getSession } from "@/lib/session";
+import { Spinner } from "@/components/ui/spinner";
+import { SESSION_ROLES } from "@/lib/schemas/session-summary.schema";
+import { useSession } from "./session-provider";
 
-export async function SiteHeader() {
-  const session = await getSession();
-  const isAdmin = session?.isAdmin ?? false;
-  const canReviewFraud = isAdmin || (session?.hasRole("moderator") ?? false);
+export function SiteHeader() {
+  const { session, isLoading } = useSession();
+  const isAdmin = session?.role === SESSION_ROLES.ADMIN;
+  const canReviewFraud = isAdmin || session?.role === SESSION_ROLES.MODERATOR;
 
   const logo = (
     <Link
@@ -36,11 +40,13 @@ export async function SiteHeader() {
     </>
   );
 
-  const userRow = session ? (
+  const userRow = isLoading ? (
+    <span role="status" aria-label="Loading account" className="flex h-8 items-center">
+      <Spinner className="w-4 h-4" />
+    </span>
+  ) : session ? (
     <>
-      <span className="text-zinc-50 font-medium truncate">
-        {session.user.name ?? session.user.email}
-      </span>
+      <span className="text-zinc-50 font-medium truncate">{session.displayName}</span>
       {isAdmin ? (
         <span className="text-sm text-red-400">admin</span>
       ) : canReviewFraud ? (
