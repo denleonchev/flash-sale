@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Zap } from "lucide-react";
-import { Spinner } from "@/components/ui/spinner";
+import { Skeleton } from "@/components/ui/skeleton";
 import { SESSION_ROLES } from "@/lib/schemas/session-summary.schema";
 import { useSession } from "./session-provider";
 
@@ -41,8 +41,9 @@ export function SiteHeader() {
   );
 
   const userRow = isLoading ? (
-    <span role="status" aria-label="Loading account" className="flex h-8 items-center">
-      <Spinner className="w-4 h-4" />
+    <span role="status" aria-label="Loading account">
+      {/* Sized like the Sign in button it most often turns into. */}
+      <Skeleton className="h-8 w-[4.5rem]" />
     </span>
   ) : session ? (
     <>
@@ -77,7 +78,9 @@ export function SiteHeader() {
         <div className="sm:hidden py-4 flex flex-col gap-3">
           <div className="flex justify-center py-1">{logo}</div>
           <nav className="flex items-center justify-center gap-6">{navLinks}</nav>
-          <div className="flex items-center justify-center gap-4">{userRow}</div>
+          {/* min-h-9 is the signed-in row (its Sign out link has py-2); the skeleton and the
+              Sign in button are shorter, and without it the header grows when the session loads. */}
+          <div className="flex min-h-9 items-center justify-center gap-4">{userRow}</div>
         </div>
 
         {/* ── Desktop (sm+): single row ── */}
